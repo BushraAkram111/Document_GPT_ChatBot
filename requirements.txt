@@ -1,8 +1,8 @@
-streamlit==1.15.2
+streamlit
 streamlit-chat
-langchain==0.0.220
+langchain
 PyMuPDF
-qdrant-client==0.9.3
+qdrant-client
 openai
 google-cloud
 python-dotenv
