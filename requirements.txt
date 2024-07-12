@@ -1,8 +1,8 @@
-numpy<2.0.0
+numpy==1.26.4
 streamlit==1.36.0
 langchain==0.0.220
-langchain-core==0.2.10
+langchain-core==0.1.52
 langchain-text-splitters==0.2.2
-langchain_community==0.0.38
+langchain-community==0.0.38
 qdrant-client==0.9.3
 streamlit-chat==0.1.1
