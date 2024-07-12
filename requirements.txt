@@ -1,9 +1,6 @@
+numpy<2.0.0
 streamlit
+langchain==0.0.220
+qdrant-client==0.9.3
 streamlit-chat
-langchain
-PyMuPDF
-qdrant-client
-openai
-google-cloud
-python-dotenv
-numpy
+langchain_community
