@@ -1,9 +1,8 @@
-streamlit
-google-generativeai
+streamlit==1.15.2
+streamlit-chat
+langchain==0.0.220
+PyMuPDF
+qdrant-client==0.9.3
+openai
+google-cloud
 python-dotenv
-langchain
-PyPDF2
-chromadb
-faiss-cpu
-langchain_google_genai
-langchain-community
