@@ -6,3 +6,4 @@ qdrant-client==0.9.3
 openai
 google-cloud
 python-dotenv
+numpy<2.0.0
