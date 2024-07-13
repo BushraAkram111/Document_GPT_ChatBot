@@ -2,14 +2,13 @@ import os
 import streamlit as st
 from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
-from langchain.callbacks import get_openai_callback
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
@@ -161,7 +160,8 @@ def main():
                     st.error("Failed to create text chunks.")
             else:
                 st.error("No pages loaded from files.")
-    elif st.session_state.processComplete:
+    
+    if st.session_state.processComplete:
         st.subheader("Chat with Your Document")
         input_query = st.text_input("Ask a question about your files:", key="chat_input")
 
