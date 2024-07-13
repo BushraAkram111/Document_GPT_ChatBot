@@ -18,3 +18,4 @@ transformers==4.30.2
 langchain-anthropic
 langchain-openai
 langchain_groq
+protobuf==4.23.5  
