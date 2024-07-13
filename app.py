@@ -106,6 +106,7 @@ def set_mode():
 set_mode()
 
 # Set default values for API keys
+DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"  # Replace with your OpenAI API Key
 DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
 
 def main():
@@ -123,22 +124,25 @@ def main():
         st.session_state.selected_model = model_choice
 
         # Get API keys from the user or use the default one
-        qdrant_api_key = st.sidebar.text_input("Qdrant API Key", type="password", help="Enter your Qdrant API Key here.")
-        qdrant_url = st.sidebar.text_input("Qdrant URL", help="Enter your Qdrant URL here.")
-        openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Enter your OpenAI API Key here.")
-        google_api_key = st.sidebar.text_input("Google API Key", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or use the default one.")
+        st.sidebar.write("### Optional: Add Your API Keys")
+        openai_api_key = st.sidebar.text_input("OpenAI API Key (leave blank to use default)", type="password", help="Enter your OpenAI API Key here or leave blank to use the default key.")
+        google_api_key = st.sidebar.text_input("Google API Key (leave blank to use default)", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or leave blank to use the default key.")
 
-        if qdrant_api_key and qdrant_url and openai_api_key:
-            st.session_state.qdrant_api_key = qdrant_api_key
-            st.session_state.qdrant_url = qdrant_url
-            st.session_state.openai_api_key = openai_api_key
-            st.session_state.google_api_key = google_api_key
-            st.session_state.api_key_error = False
-        else:
-            st.session_state.api_key_error = True
+        if not openai_api_key:
+            openai_api_key = DEFAULT_OPENAI_API_KEY
+        if not google_api_key:
+            google_api_key = DEFAULT_GOOGLE_API_KEY
+
+        st.session_state.openai_api_key = openai_api_key
+        st.session_state.google_api_key = google_api_key
 
         process = st.sidebar.button("Process")
-        if process and not st.session_state.api_key_error:
+        if process:
+            qdrant_api_key = os.getenv("QDRANT_API_KEY", "YOUR_QDRANT_API_KEY")  # Replace with your Qdrant API Key
+            qdrant_url = os.getenv("QDRANT_URL", "YOUR_QDRANT_URL")  # Replace with your Qdrant URL
+            st.session_state.qdrant_api_key = qdrant_api_key
+            st.session_state.qdrant_url = qdrant_url
+
             pages = get_files_text(uploaded_files)
             if pages:
                 st.sidebar.write(f"Total pages loaded: {len(pages)}")
@@ -155,21 +159,18 @@ def main():
                     st.error("Failed to create text chunks.")
             else:
                 st.error("No pages loaded from files.")
-        elif st.session_state.api_key_error:
-            st.error("Please enter all required API keys.")
+        elif st.session_state.processComplete:
+            st.subheader("Chat with Your Document")
+            input_query = st.text_input("Ask Question about your files.", key="chat_input")
+            if input_query:
+                response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+                st.session_state.chat_history.append({"content": input_query, "is_user": True})
+                st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
-    if st.session_state.processComplete:
-        st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask Question about your files.", key="chat_input")
-        if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
-            st.session_state.chat_history.append({"content": input_query, "is_user": True})
-            st.session_state.chat_history.append({"content": response_text, "is_user": False})
-
-        response_container = st.container()
-        with response_container:
-            for i, message_data in enumerate(st.session_state.chat_history):
-                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+            response_container = st.container()
+            with response_container:
+                for i, message_data in enumerate(st.session_state.chat_history):
+                    message(message_data["content"], is_user=message_data["is_user"], key=str(i))
 
 def get_files_text(uploaded_files):
     documents = []
@@ -203,8 +204,8 @@ def get_files_text(uploaded_files):
     return documents
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(texts=text_chunks, embedding=embeddings_model, collection_name="Machine_learning", url=qdrant_url, api_key=qdrant_api_key, force_recreate=True)
+    embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
     return vectorstore
 
 def get_text_chunks(pages):
