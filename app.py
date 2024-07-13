@@ -109,6 +109,10 @@ set_mode()
 DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"  # Replace with your OpenAI API Key
 DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
 
+# Qdrant credentials (hidden from users)
+QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
+QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
+
 def main():
     load_dotenv()
 
@@ -138,10 +142,8 @@ def main():
 
         process = st.sidebar.button("Process")
         if process:
-            qdrant_api_key = os.getenv("QDRANT_API_KEY", "YOUR_QDRANT_API_KEY")  # Replace with your Qdrant API Key
-            qdrant_url = os.getenv("QDRANT_URL", "YOUR_QDRANT_URL")  # Replace with your Qdrant URL
-            st.session_state.qdrant_api_key = qdrant_api_key
-            st.session_state.qdrant_url = qdrant_url
+            st.session_state.qdrant_api_key = QDRANT_API_KEY
+            st.session_state.qdrant_url = QDRANT_URL
 
             pages = get_files_text(uploaded_files)
             if pages:
@@ -149,7 +151,7 @@ def main():
                 text_chunks = get_text_chunks(pages)
                 st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
                 if text_chunks:
-                    vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
+                    vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
                     st.sidebar.write("Vector Store Created...")
                     st.session_state.conversation = vectorstore
                     st.session_state.processComplete = True
@@ -264,11 +266,11 @@ if __name__ == "__main__":
     if 'google_api_key' not in st.session_state:
         st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
     if 'qdrant_api_key' not in st.session_state:
-        st.session_state.qdrant_api_key = None
+        st.session_state.qdrant_api_key = QDRANT_API_KEY
     if 'qdrant_url' not in st.session_state:
-        st.session_state.qdrant_url = None
+        st.session_state.qdrant_url = QDRANT_URL
     if 'openai_api_key' not in st.session_state:
-        st.session_state.openai_api_key = None
+        st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
     if 'session_id' not in st.session_state:
         st.session_state.session_id = None
 
