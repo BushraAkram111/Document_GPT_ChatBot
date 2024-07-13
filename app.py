@@ -31,7 +31,7 @@ def main():
 
     with st.sidebar:
         uploaded_files = st.file_uploader("Upload your file", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
-        google_api_key = st.secrets["google_api_key"]
+        google_api_key = st.secrets["AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"]
         process = st.button("Process")
         if process:
             if not google_api_key:
