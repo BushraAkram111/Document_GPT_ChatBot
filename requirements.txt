@@ -2,11 +2,11 @@ numpy==1.23.2
 streamlit==1.35.0
 streamlit-chat==0.1.1
 pymupdf
-langchain==0.2.3
+langchain==0.0.207
 pandas==2.2.2
 python-docx==1.1.2
 python-dotenv==1.0.1
-google-api-python-client==2.134.0
+oogle-api-python-client==2.40.0
 langchain==0.2.3
 langchain-community==0.2.4
 langchain-google-genai==1.0.6
