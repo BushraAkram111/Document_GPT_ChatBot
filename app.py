@@ -122,28 +122,15 @@ def main():
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
 
     if uploaded_files:
-        st.sidebar.header("Model Selection and API Keys")
+        st.sidebar.header("Model Selection")
         model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
 
-        # Get API keys from the user or use the default one
-        st.sidebar.write("### Optional: Add Your API Keys")
-        openai_api_key = st.sidebar.text_input("OpenAI API Key (leave blank to use default)", type="password", help="Enter your OpenAI API Key here or leave blank to use the default key.")
-        google_api_key = st.sidebar.text_input("Google API Key (leave blank to use default)", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or leave blank to use the default key.")
-
-        if not openai_api_key:
-            openai_api_key = DEFAULT_OPENAI_API_KEY
-        if not google_api_key:
-            google_api_key = DEFAULT_GOOGLE_API_KEY
-
-        st.session_state.openai_api_key = openai_api_key
-        st.session_state.google_api_key = google_api_key
+        st.session_state.qdrant_api_key = QDRANT_API_KEY
+        st.session_state.qdrant_url = QDRANT_URL
 
         process = st.sidebar.button("Process")
         if process:
-            st.session_state.qdrant_api_key = QDRANT_API_KEY
-            st.session_state.qdrant_url = QDRANT_URL
-
             pages = get_files_text(uploaded_files)
             if pages:
                 st.sidebar.write(f"Total pages loaded: {len(pages)}")
@@ -166,7 +153,7 @@ def main():
         input_query = st.text_input("Ask a question about your files:", key="chat_input")
 
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, DEFAULT_OPENAI_API_KEY, DEFAULT_GOOGLE_API_KEY, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
@@ -256,23 +243,14 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         return str(ex)
 
 if __name__ == "__main__":
+    # Initialize session state variables
     if 'processComplete' not in st.session_state:
         st.session_state.processComplete = False
+    if 'selected_model' not in st.session_state:
+        st.session_state.selected_model = "OpenAI"  # Default model
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'conversation' not in st.session_state:
         st.session_state.conversation = None
-    if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = None
-    if 'google_api_key' not in st.session_state:
-        st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
-    if 'qdrant_api_key' not in st.session_state:
-        st.session_state.qdrant_api_key = QDRANT_API_KEY
-    if 'qdrant_url' not in st.session_state:
-        st.session_state.qdrant_url = QDRANT_URL
-    if 'openai_api_key' not in st.session_state:
-        st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
-    if 'session_id' not in st.session_state:
-        st.session_state.session_id = None
-
+    
     main()
