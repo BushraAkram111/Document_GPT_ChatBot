@@ -161,18 +161,19 @@ def main():
                     st.error("Failed to create text chunks.")
             else:
                 st.error("No pages loaded from files.")
-        elif st.session_state.processComplete:
-            st.subheader("Chat with Your Document")
-            input_query = st.text_input("Ask Question about your files.", key="chat_input")
-            if input_query:
-                response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
-                st.session_state.chat_history.append({"content": input_query, "is_user": True})
-                st.session_state.chat_history.append({"content": response_text, "is_user": False})
+    elif st.session_state.processComplete:
+        st.subheader("Chat with Your Document")
+        input_query = st.text_input("Ask a question about your files:", key="chat_input")
 
-            response_container = st.container()
-            with response_container:
-                for i, message_data in enumerate(st.session_state.chat_history):
-                    message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+        if input_query:
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+            st.session_state.chat_history.append({"content": input_query, "is_user": True})
+            st.session_state.chat_history.append({"content": response_text, "is_user": False})
+
+        response_container = st.container()
+        with response_container:
+            for i, message_data in enumerate(st.session_state.chat_history):
+                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
 
 def get_files_text(uploaded_files):
     documents = []
@@ -206,7 +207,7 @@ def get_files_text(uploaded_files):
     return documents
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
     return vectorstore
 
