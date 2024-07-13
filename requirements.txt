@@ -13,4 +13,4 @@ docx2txt==0.8
 langchain-core==0.2.3
 qdrant-client==1.9.1
 transformers==4.30.2
-langchain_qdrant
+langchain-qdrant==0.1.1
