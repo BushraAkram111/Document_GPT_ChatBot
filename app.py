@@ -20,7 +20,6 @@ from langchain.document_loaders import Docx2txtLoader
 from langchain.docstore.document import Document
 from dotenv import load_dotenv
 import tempfile
-import os
 
 # Set page config at the beginning
 st.set_page_config(page_title="Chat with your file", layout="wide")
@@ -83,7 +82,6 @@ def main():
     st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h2>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h4>", unsafe_allow_html=True)
 
-
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
@@ -98,9 +96,9 @@ def main():
     with st.sidebar:
         uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
         
-        google_api_key = os.getenv("AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8")
-        qdrant_api_key = os.getenv("QhuasNUn9YeosM3XM5vZjbX3KdGZPjraJKww4LZHmaYLUr2u0zk1cA")
-        qdrant_url = os.getenv("https://84258c76-54ac-4809-a4ca-433c0f17c052.us-east4-0.gcp.cloud.qdrant.io")
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        qdrant_url = os.getenv("QDRANT_URL")
         openai_api_key = os.getenv("OPENAI_API_KEY")
         
         if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
@@ -174,7 +172,7 @@ def get_files_text(uploaded_files):
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
     embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(texts=text_chunks, embedding=embeddings_model, collection_name="Machine_learning", url=qdrant_url, api_key=qdrant_api_key,force_recreate=True)
+    vectorstore = Qdrant.from_texts(texts=text_chunks, embedding=embeddings_model, collection_name="Machine_learning", url=qdrant_url, api_key=qdrant_api_key, force_recreate=True)
     return vectorstore
 
 def get_text_chunks(pages):
@@ -191,15 +189,15 @@ def get_text_chunks(pages):
     return texts
 
 def qdrant_client():
-        embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        qdrant_key = st.secrets["qdrant_api_key"]
-        URL = st.secrets["qdrant_url"]
-        qdrant_client = QdrantClient(
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    qdrant_key = st.secrets["qdrant_api_key"]
+    URL = st.secrets["qdrant_url"]
+    qdrant_client = QdrantClient(
         url=URL,
         api_key=qdrant_key,
-        )
-        qdrant_store = Qdrant(qdrant_client,"Machine_learning" ,embedding_model)
-        return qdrant_store
+    )
+    qdrant_store = Qdrant(qdrant_client, "Machine_learning", embedding_model)
+    return qdrant_store
 
 vector_db = qdrant_client() 
 
