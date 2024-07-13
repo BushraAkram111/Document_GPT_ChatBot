@@ -21,7 +21,7 @@ load_dotenv()
 
 # Default API keys
 DEFAULT_OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
-DEFAULT_GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "YOUR_GOOGLE_API_KEY")
+DEFAULT_GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8")
 
 # Qdrant credentials
 QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
