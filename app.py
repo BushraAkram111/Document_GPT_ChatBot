@@ -105,6 +105,9 @@ def set_mode():
 
 set_mode()
 
+# Set Google Gemini API Key
+GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
+
 def main():
     load_dotenv()
 
@@ -122,14 +125,12 @@ def main():
         model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
 
-        google_api_key = st.sidebar.text_input("Google API Key", type="password", help="Enter your Google API Key here.")
         qdrant_api_key = st.sidebar.text_input("Qdrant API Key", type="password", help="Enter your Qdrant API Key here.")
         qdrant_url = st.sidebar.text_input("Qdrant URL", help="Enter your Qdrant URL here.")
         openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Enter your OpenAI API Key here.")
 
         # Check for missing API keys
-        if google_api_key and qdrant_api_key and qdrant_url and openai_api_key:
-            st.session_state.google_api_key = google_api_key
+        if qdrant_api_key and qdrant_url and openai_api_key:
             st.session_state.qdrant_api_key = qdrant_api_key
             st.session_state.qdrant_url = qdrant_url
             st.session_state.openai_api_key = openai_api_key
@@ -165,7 +166,7 @@ def main():
         st.subheader("Chat with Your Document")
         input_query = st.text_input("Ask Question about your files.", key="chat_input")
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, GOOGLE_API_KEY, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
@@ -269,7 +270,7 @@ if __name__ == "__main__":
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = None
     if 'google_api_key' not in st.session_state:
-        st.session_state.google_api_key = None
+        st.session_state.google_api_key = GOOGLE_API_KEY
     if 'qdrant_api_key' not in st.session_state:
         st.session_state.qdrant_api_key = None
     if 'qdrant_url' not in st.session_state:
