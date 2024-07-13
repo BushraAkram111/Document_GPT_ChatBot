@@ -20,7 +20,7 @@ load_dotenv()
 
 # Default API keys
 DEFAULT_OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
-DEFAULT_GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8")
+DEFAULT_GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "YOUR_GOOGLE_API_KEY")
 
 # Qdrant credentials
 QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
@@ -183,13 +183,11 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         else:
             chat_model = ChatGoogleGenerativeAI(api_key=google_api_key)
 
-        response = chat_model(
-            [HumanMessage(content=input_query), AIMessage(content=context_text)],
-            prompt_template=prompt,
-            output_parser=StrOutputParser()
-        )
+        # Create the chat prompt
+        messages = [HumanMessage(content=input_query), AIMessage(content=context_text)]
+        response = chat_model(messages)
 
-        return response['text']
+        return response['content']
     except Exception as e:
         return f"An error occurred: {e}"
 
@@ -223,13 +221,11 @@ def main():
                         st.session_state.conversation = vectorstore
                         st.session_state.processComplete = True
                         st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
-                        st.success("Processing complete! You can now ask questions about your files.")
+                        st.success("Processing complete! You can now ask questions about your document.")
                     except ResponseHandlingException as e:
-                        st.error(f"Error in creating vector store: {e}")
-                else:
-                    st.error("No text chunks created.")
-            else:
-                st.error("No pages loaded from the files.")
+                        st.error(f"Qdrant API Error: {e}")
+                    except Exception as e:
+                        st.error(f"An unexpected error occurred: {e}")
 
     if st.session_state.processComplete:
         st.header("💬 Chat with Your Document")
