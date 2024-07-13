@@ -9,6 +9,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
@@ -108,9 +109,9 @@ set_mode()
 DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
 DEFAULT_GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"
 
-# Qdrant credentials (hidden from users)
-QDRANT_API_KEY = "YOUR_QDRANT_API_KEY"
-QDRANT_URL = "YOUR_QDRANT_URL"
+# Qdrant credentials
+QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
+QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
 
 def main():
     load_dotenv()
@@ -135,25 +136,28 @@ def main():
             if pages:
                 st.sidebar.write(f"Total pages loaded: {len(pages)}")
                 text_chunks = get_text_chunks(pages)
-                st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
+                st.sidebar.write(f"File chunks created: {len(text_chunks)}")
                 if text_chunks:
-                    vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
-                    st.sidebar.write("Vector Store Created...")
-                    st.session_state.conversation = vectorstore
-                    st.session_state.processComplete = True
-                    st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
-                    st.success("Processing complete! You can now ask questions about your files.")
+                    try:
+                        vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
+                        st.sidebar.write("Vector Store Created...")
+                        st.session_state.conversation = vectorstore
+                        st.session_state.processComplete = True
+                        st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
+                        st.success("Processing complete! You can now ask questions about your files.")
+                    except ResponseHandlingException as e:
+                        st.error(f"Error in creating vector store: {e}")
                 else:
                     st.error("Failed to create text chunks.")
             else:
                 st.error("No pages loaded from files.")
 
-    if st.session_state.processComplete:
+    if st.session_state.get('processComplete', False):
         st.subheader("Chat with Your Document")
         input_query = st.text_input("Ask a question about your files:", key="chat_input")
 
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, DEFAULT_OPENAI_API_KEY, DEFAULT_GOOGLE_API_KEY, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.get('openai_api_key', DEFAULT_OPENAI_API_KEY), st.session_state.get('google_api_key', DEFAULT_GOOGLE_API_KEY), st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
@@ -220,33 +224,31 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         """
         prompt = ChatPromptTemplate.from_template(template)
         retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-        setup_and_retrieval = RunnableParallel(
-            {"context": retriever, "question": RunnablePassthrough()}
-        )
+        context_docs = retriever.retrieve(input_query)
+        context_text = "\n\n".join([doc.page_content for doc in context_docs])
 
-        if selected_model == "Google Gemini":
-            model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
-        elif selected_model == "OpenAI":
-            model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
+        if selected_model == "OpenAI":
+            chat_model = ChatOpenAI(api_key=openai_api_key)
         else:
-            raise ValueError("Invalid model selected.")
-        output_parser = StrOutputParser()
-        rag_chain = (
-            setup_and_retrieval
-            | prompt
-            | model
-            | output_parser
-        )
-        response = rag_chain.invoke(input_query)
+            chat_model = ChatGoogleGenerativeAI(api_key=google_api_key)
+
+        chat_messages = [
+            HumanMessage(content=input_query),
+            AIMessage(content=context_text)
+        ]
+
+        response = chat_model.chat(chat_messages, prompt_template=prompt, output_parser=StrOutputParser())
+
         return response
-    except Exception as ex:
-        return str(ex)
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 if __name__ == "__main__":
-    if "chat_history" not in st.session_state:
+    if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
-    if "processComplete" not in st.session_state:
+    if 'processComplete' not in st.session_state:
         st.session_state.processComplete = False
-    if "selected_model" not in st.session_state:
-        st.session_state.selected_model = None
+    if 'selected_model' not in st.session_state:
+        st.session_state.selected_model = "OpenAI"
+
     main()
