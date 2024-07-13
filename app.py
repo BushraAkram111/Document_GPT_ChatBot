@@ -105,17 +105,14 @@ def set_mode():
 
 set_mode()
 
-# Set Google Gemini API Key
-GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
+# Set default values for API keys
+DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
 
 def main():
     load_dotenv()
 
     st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
-
-    if 'api_key_error' in st.session_state and st.session_state.api_key_error:
-        st.sidebar.error("Please enter all required API keys.")
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
@@ -125,48 +122,47 @@ def main():
         model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
 
+        # Get API keys from the user or use the default one
         qdrant_api_key = st.sidebar.text_input("Qdrant API Key", type="password", help="Enter your Qdrant API Key here.")
         qdrant_url = st.sidebar.text_input("Qdrant URL", help="Enter your Qdrant URL here.")
         openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Enter your OpenAI API Key here.")
+        google_api_key = st.sidebar.text_input("Google API Key", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or use the default one.")
 
-        # Check for missing API keys
         if qdrant_api_key and qdrant_url and openai_api_key:
             st.session_state.qdrant_api_key = qdrant_api_key
             st.session_state.qdrant_url = qdrant_url
             st.session_state.openai_api_key = openai_api_key
-
-            # Clear any previous API key error
+            st.session_state.google_api_key = google_api_key
             st.session_state.api_key_error = False
         else:
             st.session_state.api_key_error = True
 
-        if not st.session_state.api_key_error:
-            process = st.sidebar.button("Process")
-            if process:
-                pages = get_files_text(uploaded_files)
-                if pages:
-                    st.sidebar.write(f"Total pages loaded: {len(pages)}")
-                    text_chunks = get_text_chunks(pages)
-                    st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
-                    if text_chunks:
-                        vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
-                        st.sidebar.write("Vector Store Created...")
-                        st.session_state.conversation = vectorstore
-                        st.session_state.processComplete = True
-                        st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
-                        st.success("Processing complete! You can now ask questions about your files.")
-                    else:
-                        st.error("Failed to create text chunks.")
+        process = st.sidebar.button("Process")
+        if process and not st.session_state.api_key_error:
+            pages = get_files_text(uploaded_files)
+            if pages:
+                st.sidebar.write(f"Total pages loaded: {len(pages)}")
+                text_chunks = get_text_chunks(pages)
+                st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
+                if text_chunks:
+                    vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
+                    st.sidebar.write("Vector Store Created...")
+                    st.session_state.conversation = vectorstore
+                    st.session_state.processComplete = True
+                    st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
+                    st.success("Processing complete! You can now ask questions about your files.")
                 else:
-                    st.error("No pages loaded from files.")
-        else:
+                    st.error("Failed to create text chunks.")
+            else:
+                st.error("No pages loaded from files.")
+        elif st.session_state.api_key_error:
             st.error("Please enter all required API keys.")
 
     if st.session_state.processComplete:
         st.subheader("Chat with Your Document")
         input_query = st.text_input("Ask Question about your files.", key="chat_input")
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, GOOGLE_API_KEY, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
@@ -212,12 +208,7 @@ def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
     return vectorstore
 
 def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=900,
-        chunk_overlap=100,
-        length_function=len,
-        is_separator_regex=False,
-    )
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     texts = []
     for page in pages:
         text = page.page_content
@@ -270,7 +261,7 @@ if __name__ == "__main__":
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = None
     if 'google_api_key' not in st.session_state:
-        st.session_state.google_api_key = GOOGLE_API_KEY
+        st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
     if 'qdrant_api_key' not in st.session_state:
         st.session_state.qdrant_api_key = None
     if 'qdrant_url' not in st.session_state:
