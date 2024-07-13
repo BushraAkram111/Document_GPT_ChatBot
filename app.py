@@ -9,11 +9,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain.document_loaders import Docx2txtLoader
 from dotenv import load_dotenv
 import tempfile
 
@@ -136,6 +131,7 @@ def main():
         st.session_state.qdrant_api_key = QDRANT_API_KEY
         st.session_state.qdrant_url = QDRANT_URL
 
+        st.sidebar.write("### Process Files")
         process = st.sidebar.button("Process")
         if process:
             pages = get_files_text(uploaded_files)
@@ -208,16 +204,15 @@ def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
 def get_text_chunks(pages):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     texts = []
-    for page in pages:
-        text = page.page_content
-        chunks = text_splitter.split_text(text)
+    for doc in pages:
+        chunks = text_splitter.split_text(doc.page_content)
         texts.extend(chunks)
     return texts
 
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
         template = """
-        You are a helpful assistant. You will help the user by providing answers based on the context of the documents uploaded.
+        You are a helpful assistant. Provide accurate and relevant answers based on the context of the documents uploaded.
         If you do not know the answer, you should say "I don't know."
         Context: {context}
         Question: {question}
@@ -230,13 +225,17 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         if selected_model == "OpenAI":
             model = ChatOpenAI(openai_api_key=openai_api_key)
             response = model([HumanMessage(content=prompt), AIMessage(content="")])
+            response_text = response['text']  # Access the response text correctly
+
         elif selected_model == "Google Gemini":
             model = ChatGoogleGenerativeAI(api_key=google_api_key)
             response = model([HumanMessage(content=prompt), AIMessage(content="")])
-        else:
-            return "Invalid model selected."
+            response_text = response['text']  # Access the response text correctly
 
-        return response['text']  # Access the response text correctly
+        else:
+            response_text = "Invalid model selected."
+
+        return response_text
 
     except Exception as e:
         return f"An error occurred: {str(e)}"
