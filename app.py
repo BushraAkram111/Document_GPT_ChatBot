@@ -21,56 +21,61 @@ from dotenv import load_dotenv
 import tempfile
 
 # Set page config at the beginning
-st.set_page_config(page_title="Chat with your file", layout="wide")
+st.set_page_config(page_title="Chat with Your Document", layout="wide")
 
 # Add CSS styles
 st.markdown("""
     <style>
         .main {
-            background-color:  #000000;
+            background-color: #1e1e1e;
+            color: #ffffff;
             padding: 20px;
-            color:#ffffff;
+            border-radius: 10px;
         }
         .sidebar .sidebar-content {
-            background-color: #ffffff;
+            background-color: #2e2e2e;
             border-radius: 10px;
             padding: 20px;
+            color: #ffffff;
         }
         .sidebar .sidebar-content h2 {
-            color: #333333;
-            background-color: #000000;
+            color: #f5f5f5;
+            background-color: #1e1e1e;
         }
         .stButton button {
             background-color: #0073e6;
             color: #ffffff;
             border: none;
             border-radius: 5px;
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
+            font-size: 16px;
         }
         .stButton button:hover {
             background-color: #005bb5;
         }
         .message {
-            background-color: #ffffff;
+            background-color: #2e2e2e;
+            color: #ffffff;
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         .message.user {
-            background-color: #e6f7ff;
+            background-color: #3a3a3a;
         }
         .message.bot {
-            background-color: #f0f0f0;
+            background-color: #4a4a4a;
         }
         .chat-input {
-            background-color: #ffffff;
-            border: 1px solid #d9d9d9;
+            background-color: #2e2e2e;
+            border: 1px solid #444444;
             border-radius: 10px;
             padding: 10px;
             width: 100%;
             box-sizing: border-box;
+            color: #ffffff;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -78,9 +83,18 @@ st.markdown("""
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h2>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h4>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #ffffff;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
+    # Fetch Qdrant API Key and URL from environment variables
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
+    qdrant_url = os.getenv("QDRANT_URL")
+    
+    if not qdrant_api_key or not qdrant_url:
+        st.error("Qdrant API Key and URL must be set in the environment variables.")
+        st.stop()
+
+    # Initialize session state
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
@@ -93,15 +107,13 @@ def main():
         st.session_state.selected_model = "OpenAI"
 
     with st.sidebar:
-        uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True)
         
         google_api_key = st.text_input("Enter Google API Key", type="password", help="Enter your Google API Key for Gemini model.")
-        qdrant_api_key = st.text_input("Enter Qdrant API Key", type="password", help="Enter your Qdrant API Key.")
-        qdrant_url = st.text_input("Enter Qdrant URL", help="Enter the URL for your Qdrant instance.")
         openai_api_key = st.text_input("Enter OpenAI API Key", type="password", help="Enter your OpenAI API Key.")
 
-        if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
-            st.info("Please add your API keys to continue.")
+        if not google_api_key or not openai_api_key:
+            st.info("Please add your Google and OpenAI API keys to continue.")
             st.stop()
 
         model_choice = st.radio("Select the model to use", ("Google Gemini", "OpenAI"))
@@ -207,7 +219,7 @@ Answer:
         elif selected_model == "OpenAI":
             model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
         else:
-            raise ValueError("Invalid model selected.")           
+            raise ValueError("Invalid model selected.")
         output_parser = StrOutputParser()
         rag_chain = (
             setup_and_retrieval
@@ -220,5 +232,5 @@ Answer:
     except Exception as ex:
         return str(ex)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
