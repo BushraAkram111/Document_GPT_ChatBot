@@ -9,11 +9,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain.document_loaders import Docx2txtLoader
 from dotenv import load_dotenv
 import tempfile
 
@@ -105,7 +100,7 @@ def set_mode():
 set_mode()
 
 # Set default values for API keys
-DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"  # Replace with your OpenAI API Key
+DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
 DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
 
 # Qdrant credentials (hidden from users)
@@ -122,28 +117,23 @@ def main():
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
 
     if uploaded_files:
-        st.sidebar.header("Model Selection and API Keys")
+        st.sidebar.header("Model Selection")
         model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
 
-        # Get API keys from the user or use the default one
-        st.sidebar.write("### Optional: Add Your API Keys")
-        openai_api_key = st.sidebar.text_input("OpenAI API Key (leave blank to use default)", type="password", help="Enter your OpenAI API Key here or leave blank to use the default key.")
-        google_api_key = st.sidebar.text_input("Google API Key (leave blank to use default)", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or leave blank to use the default key.")
-
-        if not openai_api_key:
-            openai_api_key = DEFAULT_OPENAI_API_KEY
-        if not google_api_key:
-            google_api_key = DEFAULT_GOOGLE_API_KEY
+        st.sidebar.write("### API Keys")
+        openai_api_key = DEFAULT_OPENAI_API_KEY
+        google_api_key = DEFAULT_GOOGLE_API_KEY
 
         st.session_state.openai_api_key = openai_api_key
         st.session_state.google_api_key = google_api_key
 
+        st.session_state.qdrant_api_key = QDRANT_API_KEY
+        st.session_state.qdrant_url = QDRANT_URL
+
+        st.sidebar.write("### Process Files")
         process = st.sidebar.button("Process")
         if process:
-            st.session_state.qdrant_api_key = QDRANT_API_KEY
-            st.session_state.qdrant_url = QDRANT_URL
-
             pages = get_files_text(uploaded_files)
             if pages:
                 st.sidebar.write(f"Total pages loaded: {len(pages)}")
@@ -214,65 +204,46 @@ def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
 def get_text_chunks(pages):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     texts = []
-    for page in pages:
-        text = page.page_content
-        chunks = text_splitter.split_text(text)
+    for doc in pages:
+        chunks = text_splitter.split_text(doc.page_content)
         texts.extend(chunks)
     return texts
 
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
         template = """
-        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
-
-        Question: {question}
-
+        You are a helpful assistant. Provide accurate and relevant answers based on the context of the documents uploaded.
+        If you do not know the answer, you should say "I don't know."
         Context: {context}
-
-        Answer:
+        Question: {question}
         """
-        prompt = ChatPromptTemplate.from_template(template)
-        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-        setup_and_retrieval = RunnableParallel(
-            {"context": retriever, "question": RunnablePassthrough()}
-        )
 
-        if selected_model == "Google Gemini":
-            model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
-        elif selected_model == "OpenAI":
-            model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
+        context = vector_db.similarity_search(input_query)
+        context_text = " ".join([c.page_content for c in context])
+        prompt = template.format(context=context_text, question=input_query)
+
+        if selected_model == "OpenAI":
+            model = ChatOpenAI(openai_api_key=openai_api_key)
+            response = model([HumanMessage(content=prompt), AIMessage(content="")])
+            response_text = response['text']  # Access the response text correctly
+
+        elif selected_model == "Google Gemini":
+            model = ChatGoogleGenerativeAI(api_key=google_api_key)
+            response = model([HumanMessage(content=prompt), AIMessage(content="")])
+            response_text = response['text']  # Access the response text correctly
+
         else:
-            raise ValueError("Invalid model selected.")
-        output_parser = StrOutputParser()
-        rag_chain = (
-            setup_and_retrieval
-            | prompt
-            | model
-            | output_parser
-        )
-        response = rag_chain.invoke(input_query)
-        return response
-    except Exception as ex:
-        return str(ex)
+            response_text = "Invalid model selected."
+
+        return response_text
+
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 if __name__ == "__main__":
-    if 'processComplete' not in st.session_state:
-        st.session_state.processComplete = False
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
-    if 'conversation' not in st.session_state:
-        st.session_state.conversation = None
-    if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = None
-    if 'google_api_key' not in st.session_state:
-        st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
-    if 'qdrant_api_key' not in st.session_state:
-        st.session_state.qdrant_api_key = QDRANT_API_KEY
-    if 'qdrant_url' not in st.session_state:
-        st.session_state.qdrant_url = QDRANT_URL
-    if 'openai_api_key' not in st.session_state:
-        st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
-    if 'session_id' not in st.session_state:
-        st.session_state.session_id = None
+    if 'processComplete' not in st.session_state:
+        st.session_state.processComplete = False
 
     main()
