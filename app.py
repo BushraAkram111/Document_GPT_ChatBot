@@ -4,8 +4,7 @@ from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
 from langchain.callbacks import get_openai_callback
 from langchain_core.messages import AIMessage, HumanMessage
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
@@ -16,20 +15,19 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain.document_loaders import Docx2txtLoader
-from langchain.docstore.document import Document
 from dotenv import load_dotenv
 import tempfile
 
 # Set page config at the beginning
-st.set_page_config(page_title="Chat with your file", layout="wide")
+st.set_page_config(page_title="Chat with Your Document", layout="wide")
 
 # Add CSS styles
 st.markdown("""
     <style>
         .main {
-            background-color:  #000000;
+            background-color:  #f0f0f0;
             padding: 20px;
-            color:#ffffff;
+            color: #000000;
         }
         .sidebar .sidebar-content {
             background-color: #ffffff;
@@ -38,7 +36,7 @@ st.markdown("""
         }
         .sidebar .sidebar-content h2 {
             color: #333333;
-            background-color: #000000;
+            background-color: #ffffff;
         }
         .stButton button {
             background-color: #0073e6;
@@ -72,64 +70,93 @@ st.markdown("""
             width: 100%;
             box-sizing: border-box;
         }
+        .dark-mode .main {
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        .dark-mode .sidebar .sidebar-content {
+            background-color: #2e2e2e;
+            color: #ffffff;
+        }
+        .dark-mode .message {
+            background-color: #2e2e2e;
+            color: #ffffff;
+        }
+        .dark-mode .chat-input {
+            background-color: #3c3c3c;
+            color: #ffffff;
+            border: 1px solid #444444;
+        }
+        .dark-mode .stButton button {
+            background-color: #005bb5;
+        }
+        .dark-mode .stButton button:hover {
+            background-color: #0073e6;
+        }
     </style>
 """, unsafe_allow_html=True)
+
+# Function to check and set the mode
+def set_mode():
+    if st.session_state.get('dark_mode', False):
+        st.markdown('<script>document.body.classList.add("dark-mode");</script>', unsafe_allow_html=True)
+    else:
+        st.session_state['dark_mode'] = False
+
+set_mode()
 
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h2>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h4>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-    if "processComplete" not in st.session_state:
-        st.session_state.processComplete = None
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = None
-    if "selected_model" not in st.session_state:
-        st.session_state.selected_model = "OpenAI"
+    # File uploader at the front
+    uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
 
-    with st.sidebar:
-        uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
-        
-        google_api_key = st.text_input("Enter Google API Key", type="password", help="Enter your Google API Key for Gemini model.")
-        qdrant_api_key = st.text_input("Enter Qdrant API Key", type="password", help="Enter your Qdrant API Key.")
-        qdrant_url = st.text_input("Enter Qdrant URL", help="Enter the URL for your Qdrant instance.")
-        openai_api_key = st.text_input("Enter OpenAI API Key", type="password", help="Enter your OpenAI API Key.")
-
-        if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
-            st.info("Please add your API keys to continue.")
-            st.stop()
-
-        model_choice = st.radio("Select the model to use", ("Google Gemini", "OpenAI"))
+    if uploaded_files:
+        # Display the model choice and process button
+        st.sidebar.header("Model Selection and API Keys")
+        model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
 
-        process = st.button("Process")
-        if process:
-            pages = get_files_text(uploaded_files)
-            st.write("File loaded...")
-            if pages:
-                st.write(f"Total pages loaded: {len(pages)}")
-                text_chunks = get_text_chunks(pages)
-                st.write(f"File chunks created: {len(text_chunks)} chunks")
-                if text_chunks:
-                    vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
-                    st.write("Vector Store Created...")
-                    st.session_state.conversation = vectorstore
-                    st.session_state.processComplete = True
-                    st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
+        google_api_key = st.sidebar.text_input("Google API Key", type="password", help="Enter your Google API Key here.")
+        qdrant_api_key = st.sidebar.text_input("Qdrant API Key", type="password", help="Enter your Qdrant API Key here.")
+        qdrant_url = st.sidebar.text_input("Qdrant URL", help="Enter your Qdrant URL here.")
+        openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Enter your OpenAI API Key here.")
+
+        # Check for missing API keys
+        if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
+            st.sidebar.info("Please add your API keys to continue.")
+        else:
+            st.session_state.google_api_key = google_api_key
+            st.session_state.qdrant_api_key = qdrant_api_key
+            st.session_state.qdrant_url = qdrant_url
+            st.session_state.openai_api_key = openai_api_key
+
+            process = st.sidebar.button("Process")
+            if process:
+                pages = get_files_text(uploaded_files)
+                if pages:
+                    st.sidebar.write(f"Total pages loaded: {len(pages)}")
+                    text_chunks = get_text_chunks(pages)
+                    st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
+                    if text_chunks:
+                        vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
+                        st.sidebar.write("Vector Store Created...")
+                        st.session_state.conversation = vectorstore
+                        st.session_state.processComplete = True
+                        st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
+                        st.success("Processing complete! You can now ask questions about your files.")
+                    else:
+                        st.error("Failed to create text chunks.")
                 else:
-                    st.error("Failed to create text chunks.")
-            else:
-                st.error("No pages loaded from files.")
+                    st.error("No pages loaded from files.")
 
     if st.session_state.processComplete:
         input_query = st.chat_input("Ask Question about your files.")
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, openai_api_key, google_api_key, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
@@ -196,7 +223,7 @@ Question: <{question}>
 Context:<{context}> 
 
 Answer:
-        """
+    """
         prompt = ChatPromptTemplate.from_template(template)
         retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
         setup_and_retrieval = RunnableParallel(
@@ -221,4 +248,23 @@ Answer:
         return str(ex)
 
 if __name__ == "__main__":
+    if 'processComplete' not in st.session_state:
+        st.session_state.processComplete = False
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'conversation' not in st.session_state:
+        st.session_state.conversation = None
+    if 'selected_model' not in st.session_state:
+        st.session_state.selected_model = None
+    if 'google_api_key' not in st.session_state:
+        st.session_state.google_api_key = None
+    if 'qdrant_api_key' not in st.session_state:
+        st.session_state.qdrant_api_key = None
+    if 'qdrant_url' not in st.session_state:
+        st.session_state.qdrant_url = None
+    if 'openai_api_key' not in st.session_state:
+        st.session_state.openai_api_key = None
+    if 'session_id' not in st.session_state:
+        st.session_state.session_id = None
+
     main()
