@@ -11,7 +11,6 @@ from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain.document_loaders import Docx2txtLoader
 from dotenv import load_dotenv
@@ -188,9 +187,7 @@ def main():
             if not openai_api_key and not google_api_key:
                 st.error("Please add at least one API key to continue.")
             else:
-                try:
-                    st.spinner("Processing your document...")
-
+                with st.spinner("Processing your document..."):
                     # Process uploaded files
                     pages = get_files_text(uploaded_files)
                     text_chunks = get_text_chunks(pages)
@@ -200,7 +197,7 @@ def main():
 
                     # Add chat feature
                     st.markdown("### 💬 Ask Questions About Your Document")
-                    st.session_state.chat_history = []
+                    st.session_state.messages = []
 
                     user_input = st.text_input("Type your question here:", "", key="chat_input")
 
@@ -217,7 +214,7 @@ def main():
                                 ("system", "You are a helpful assistant."),
                                 ("user", "{query}")
                             ])
-                            response = llm(prompt.format_prompt(query=user_input))
+                            response = rag(None, user_input, openai_api_key, google_api_key, model)
                             st.session_state.messages.append({"role": "assistant", "content": response})
                         elif model == "Google Gemini":
                             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -226,7 +223,7 @@ def main():
                                 ("system", "You are a helpful assistant."),
                                 ("user", "{query}")
                             ])
-                            response = client(prompt.format_prompt(query=user_input))
+                            response = rag(None, user_input, openai_api_key, google_api_key, model)
                             st.session_state.messages.append({"role": "assistant", "content": response})
 
                         # Show chat history
