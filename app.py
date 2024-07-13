@@ -112,6 +112,57 @@ DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
 QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
 QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
 
+def get_files_text(uploaded_files):
+    pages = []
+    for uploaded_file in uploaded_files:
+        if uploaded_file.type == "application/pdf":
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(uploaded_file.read())
+                loader = PyMuPDFLoader(tmp_file.name)
+                pages.extend(loader.load())
+        elif uploaded_file.type == "text/plain":
+            text = uploaded_file.read().decode("utf-8")
+            pages.append(TextLoader(text))
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            loader = Docx2txtLoader(uploaded_file)
+            pages.extend(loader.load())
+        elif uploaded_file.type == "text/csv":
+            loader = CSVLoader(uploaded_file)
+            pages.extend(loader.load())
+    return pages
+
+def get_text_chunks(pages):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    text_chunks = []
+    for page in pages:
+        chunks = text_splitter.split_documents([page])
+        text_chunks.extend(chunks)
+    return text_chunks
+
+def get_vectorstore(text_chunks, api_key, url):
+    embeddings = HuggingFaceEmbeddings()
+    qdrant_client = QdrantClient(url=url, api_key=api_key)
+    vectorstore = Qdrant.from_documents(text_chunks, embeddings, client=qdrant_client)
+    return vectorstore
+
+def rag(conversation, query, openai_api_key, google_api_key, model_choice):
+    response = ""
+    if model_choice == "OpenAI":
+        llm = ChatOpenAI(api_key=openai_api_key, temperature=0.7)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful assistant."),
+            ("user", "{query}")
+        ])
+        response = llm(prompt.format_prompt(query=query))
+    elif model_choice == "Google Gemini":
+        client = ChatGoogleGenerativeAI(api_key=google_api_key, temperature=0.7)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful assistant."),
+            ("user", "{query}")
+        ])
+        response = client(prompt.format_prompt(query=query))
+    return response
+
 def main():
     load_dotenv()
 
@@ -128,151 +179,62 @@ def main():
 
         # Get API keys from the user or use the default one
         st.sidebar.write("### Optional: Add Your API Keys")
-        openai_api_key = st.sidebar.text_input("OpenAI API Key (leave blank to use default)", type="password", help="Enter your OpenAI API Key here or leave blank to use the default key.")
-        google_api_key = st.sidebar.text_input("Google API Key (leave blank to use default)", type="password", value=DEFAULT_GOOGLE_API_KEY, help="Enter your Google API Key here or leave blank to use the default key.")
-
-        if not openai_api_key:
-            openai_api_key = DEFAULT_OPENAI_API_KEY
-        if not google_api_key:
-            google_api_key = DEFAULT_GOOGLE_API_KEY
-
+        openai_api_key = st.sidebar.text_input("OpenAI API Key", value=DEFAULT_OPENAI_API_KEY if 'openai_api_key' not in st.session_state else st.session_state.openai_api_key)
+        google_api_key = st.sidebar.text_input("Google API Key", value=DEFAULT_GOOGLE_API_KEY if 'google_api_key' not in st.session_state else st.session_state.google_api_key)
         st.session_state.openai_api_key = openai_api_key
         st.session_state.google_api_key = google_api_key
 
-        process = st.sidebar.button("Process")
-        if process:
-            st.session_state.qdrant_api_key = QDRANT_API_KEY
-            st.session_state.qdrant_url = QDRANT_URL
-
-            pages = get_files_text(uploaded_files)
-            if pages:
-                st.sidebar.write(f"Total pages loaded: {len(pages)}")
-                text_chunks = get_text_chunks(pages)
-                st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
-                if text_chunks:
-                    vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
-                    st.sidebar.write("Vector Store Created...")
-                    st.session_state.conversation = vectorstore
-                    st.session_state.processComplete = True
-                    st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
-                    st.success("Processing complete! You can now ask questions about your files.")
-                else:
-                    st.error("Failed to create text chunks.")
+        if st.sidebar.button("Process"):
+            if not openai_api_key and not google_api_key:
+                st.error("Please add at least one API key to continue.")
             else:
-                st.error("No pages loaded from files.")
-    
-    if st.session_state.processComplete:
-        st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask a question about your files:", key="chat_input")
+                try:
+                    st.spinner("Processing your document...")
 
-        if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
-            st.session_state.chat_history.append({"content": input_query, "is_user": True})
-            st.session_state.chat_history.append({"content": response_text, "is_user": False})
+                    # Process uploaded files
+                    pages = get_files_text(uploaded_files)
+                    text_chunks = get_text_chunks(pages)
+                    vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
 
-        response_container = st.container()
-        with response_container:
-            for i, message_data in enumerate(st.session_state.chat_history):
-                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+                    st.success("Document processed successfully!")
 
-def get_files_text(uploaded_files):
-    documents = []
-    for uploaded_file in uploaded_files:
-        file_extension = os.path.splitext(uploaded_file.name)[1]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-            temp_file.write(uploaded_file.getvalue())
-            temp_file_path = temp_file.name
+                    # Add chat feature
+                    st.markdown("### 💬 Ask Questions About Your Document")
+                    st.session_state.chat_history = []
 
-        if file_extension == ".pdf":
-            loader = PyMuPDFLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".csv":
-            loader = CSVLoader(file_path=temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".docx":
-            loader = Docx2txtLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".txt":
-            loader = TextLoader(temp_file_path)
-            pages = loader.load()
-        else:
-            st.error("Unsupported file format.")
-            return []
+                    user_input = st.text_input("Type your question here:", "", key="chat_input")
 
-        documents.extend(pages)
+                    if user_input:
+                        model = st.session_state.selected_model
+                        openai_api_key = st.session_state.openai_api_key
+                        google_api_key = st.session_state.google_api_key
 
-        # Remove the temporary file
-        os.remove(temp_file_path)
-        
-    return documents
+                        # Generate response based on model choice
+                        if model == "OpenAI":
+                            st.session_state.messages.append({"role": "user", "content": user_input})
+                            llm = ChatOpenAI(api_key=openai_api_key, temperature=0.7)
+                            prompt = ChatPromptTemplate.from_messages([
+                                ("system", "You are a helpful assistant."),
+                                ("user", "{query}")
+                            ])
+                            response = llm(prompt.format_prompt(query=user_input))
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+                        elif model == "Google Gemini":
+                            st.session_state.messages.append({"role": "user", "content": user_input})
+                            client = ChatGoogleGenerativeAI(api_key=google_api_key, temperature=0.7)
+                            prompt = ChatPromptTemplate.from_messages([
+                                ("system", "You are a helpful assistant."),
+                                ("user", "{query}")
+                            ])
+                            response = client(prompt.format_prompt(query=user_input))
+                            st.session_state.messages.append({"role": "assistant", "content": response})
 
-def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
-    return vectorstore
-
-def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    texts = []
-    for page in pages:
-        text = page.page_content
-        chunks = text_splitter.split_text(text)
-        texts.extend(chunks)
-    return texts
-
-def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
-    try:
-        template = """
-        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
-
-        Question: {question}
-
-        Context: {context}
-
-        Answer:
-        """
-        prompt = ChatPromptTemplate.from_template(template)
-        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-        setup_and_retrieval = RunnableParallel(
-            {"context": retriever, "question": RunnablePassthrough()}
-        )
-
-        if selected_model == "Google Gemini":
-            model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
-        elif selected_model == "OpenAI":
-            model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
-        else:
-            raise ValueError("Invalid model selected.")
-        output_parser = StrOutputParser()
-        rag_chain = (
-            setup_and_retrieval
-            | prompt
-            | model
-            | output_parser
-        )
-        response = rag_chain.invoke(input_query)
-        return response
-    except Exception as ex:
-        return str(ex)
+                        # Show chat history
+                        for i, message_data in enumerate(st.session_state.messages):
+                            if message_data["role"] == "user":
+                                message(message_data["content"], is_user=True, key=f"user_{i}")
+                            else:
+                                message(message_data["content"], key=f"bot_{i}")
 
 if __name__ == "__main__":
-    if 'processComplete' not in st.session_state:
-        st.session_state.processComplete = False
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'conversation' not in st.session_state:
-        st.session_state.conversation = None
-    if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = None
-    if 'google_api_key' not in st.session_state:
-        st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
-    if 'qdrant_api_key' not in st.session_state:
-        st.session_state.qdrant_api_key = QDRANT_API_KEY
-    if 'qdrant_url' not in st.session_state:
-        st.session_state.qdrant_url = QDRANT_URL
-    if 'openai_api_key' not in st.session_state:
-        st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
-    if 'session_id' not in st.session_state:
-        st.session_state.session_id = None
-
     main()
