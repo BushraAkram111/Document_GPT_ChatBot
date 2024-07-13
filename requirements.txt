@@ -10,3 +10,9 @@ huggingface-hub
 PyMuPDF
 docxtract
 dotenv
+streamlit==1.36.0
+streamlit_chat==0.1.1
+langchain==0.2.7
+langchain-google-genai==1.0.7
+langchain-community==0.2.7
+qdrant_client==1.10.1
