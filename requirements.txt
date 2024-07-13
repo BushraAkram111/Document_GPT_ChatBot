@@ -1,19 +1,19 @@
 numpy==1.24.4
 streamlit==1.35.0
 streamlit-chat==0.1.1
-pymupdf==1.22.5  # Use the latest compatible version
+pymupdf==1.22.5
 langchain==0.2.3
 pandas==2.2.2
 python-docx==1.1.2
 python-dotenv==1.0.1
 google-api-python-client==2.134.0
-langchain-community==0.2.4
+langchain-community==0.2.7  # Updated version
 langchain-google-genai==1.0.6
 sentence-transformers==2.2.2
 docx2txt==0.8
 langchain-core==0.2.3
 qdrant-client==1.9.1
 transformers==4.30.2
-langchain-anthropic==0.2.3
+langchain-anthropic==0.1.20
 langchain-openai==0.2.3
 langchain_groq==0.2.3
