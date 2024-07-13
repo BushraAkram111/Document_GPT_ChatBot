@@ -3,8 +3,8 @@ import streamlit as st
 from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader, CSVLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
@@ -122,8 +122,8 @@ def main():
         st.session_state.selected_model = model_choice
 
         st.sidebar.write("### API Keys")
-        openai_api_key = DEFAULT_OPENAI_API_KEY
-        google_api_key = DEFAULT_GOOGLE_API_KEY
+        openai_api_key = st.sidebar.text_input("Enter OpenAI API Key:", value=DEFAULT_OPENAI_API_KEY, type="password")
+        google_api_key = st.sidebar.text_input("Enter Google Gemini API Key:", value=DEFAULT_GOOGLE_API_KEY, type="password")
 
         st.session_state.openai_api_key = openai_api_key
         st.session_state.google_api_key = google_api_key
@@ -225,12 +225,12 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         if selected_model == "OpenAI":
             model = ChatOpenAI(openai_api_key=openai_api_key)
             response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response['text']  # Access the response text correctly
+            response_text = response.choices[0].message['content']  # Access the response text correctly
 
         elif selected_model == "Google Gemini":
             model = ChatGoogleGenerativeAI(api_key=google_api_key)
             response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response['text']  # Access the response text correctly
+            response_text = response.choices[0].message['content']  # Access the response text correctly
 
         else:
             response_text = "Invalid model selected."
