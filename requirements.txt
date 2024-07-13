@@ -14,6 +14,6 @@ docx2txt==0.8
 langchain-core==0.2.3
 qdrant-client==1.9.1
 transformers==4.30.2
-langchain-anthropic==0.1.20
-langchain-openai==0.2.3
+langchain-anthropic==0.1.19  # Updated version
+langchain-openai==0.1.16  # Updated version
 langchain_groq==0.2.3
