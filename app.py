@@ -133,11 +133,11 @@ def main():
         st.session_state.openai_api_key = openai_api_key
         st.session_state.google_api_key = google_api_key
 
+        st.session_state.qdrant_api_key = QDRANT_API_KEY
+        st.session_state.qdrant_url = QDRANT_URL
+
         process = st.sidebar.button("Process")
         if process:
-            st.session_state.qdrant_api_key = QDRANT_API_KEY
-            st.session_state.qdrant_url = QDRANT_URL
-
             pages = get_files_text(uploaded_files)
             if pages:
                 st.sidebar.write(f"Total pages loaded: {len(pages)}")
@@ -217,7 +217,8 @@ def get_text_chunks(pages):
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
         template = """
-        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say "I don't know."
+        You are a helpful assistant. You will help the user by providing answers based on the context of the documents uploaded.
+        If you do not know the answer, you should say "I don't know."
         Context: {context}
         Question: {question}
         """
@@ -235,7 +236,7 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         else:
             return "Invalid model selected."
 
-        return response
+        return response['text']  # Access the response text correctly
 
     except Exception as e:
         return f"An error occurred: {str(e)}"
