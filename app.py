@@ -111,11 +111,13 @@ def main():
     st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
+    if 'api_key_error' in st.session_state and st.session_state.api_key_error:
+        st.sidebar.error("Please enter all required API keys.")
+
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
 
     if uploaded_files:
-        # Display the model choice and process button
         st.sidebar.header("Model Selection and API Keys")
         model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
         st.session_state.selected_model = model_choice
@@ -126,14 +128,18 @@ def main():
         openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Enter your OpenAI API Key here.")
 
         # Check for missing API keys
-        if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
-            st.sidebar.info("Please add your API keys to continue.")
-        else:
+        if google_api_key and qdrant_api_key and qdrant_url and openai_api_key:
             st.session_state.google_api_key = google_api_key
             st.session_state.qdrant_api_key = qdrant_api_key
             st.session_state.qdrant_url = qdrant_url
             st.session_state.openai_api_key = openai_api_key
 
+            # Clear any previous API key error
+            st.session_state.api_key_error = False
+        else:
+            st.session_state.api_key_error = True
+
+        if not st.session_state.api_key_error:
             process = st.sidebar.button("Process")
             if process:
                 pages = get_files_text(uploaded_files)
@@ -152,18 +158,21 @@ def main():
                         st.error("Failed to create text chunks.")
                 else:
                     st.error("No pages loaded from files.")
+        else:
+            st.error("Please enter all required API keys.")
 
     if st.session_state.processComplete:
-        input_query = st.chat_input("Ask Question about your files.")
+        st.subheader("Chat with Your Document")
+        input_query = st.text_input("Ask Question about your files.", key="chat_input")
         if input_query:
             response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
-            response_container = st.container()
-            with response_container:
-                for i, message_data in enumerate(st.session_state.chat_history):
-                    message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+        response_container = st.container()
+        with response_container:
+            for i, message_data in enumerate(st.session_state.chat_history):
+                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
 
 def get_files_text(uploaded_files):
     documents = []
@@ -210,31 +219,34 @@ def get_text_chunks(pages):
     )
     texts = []
     for page in pages:
-        chunks = text_splitter.split_text(page.page_content)
+        text = page.page_content
+        chunks = text_splitter.split_text(text)
         texts.extend(chunks)
     return texts
 
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
-        template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to provide a detailed and comprehensive answer to the question. If you don't know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
+        template = """
+        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
 
-Question: <{question}> 
+        Question: {question}
 
-Context:<{context}> 
+        Context: {context}
 
-Answer:
-    """
+        Answer:
+        """
         prompt = ChatPromptTemplate.from_template(template)
         retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
         setup_and_retrieval = RunnableParallel(
-            {"context": retriever, "question": RunnablePassthrough()})
+            {"context": retriever, "question": RunnablePassthrough()}
+        )
 
         if selected_model == "Google Gemini":
             model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
         elif selected_model == "OpenAI":
             model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
         else:
-            raise ValueError("Invalid model selected.")           
+            raise ValueError("Invalid model selected.")
         output_parser = StrOutputParser()
         rag_chain = (
             setup_and_retrieval
