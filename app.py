@@ -173,10 +173,106 @@ def main():
         response_container = st.container()
         with response_container:
             for i, message_data in enumerate(st.session_state.chat_history):
-                if message_data["is_user"]:
-                    message(message_data["content"], is_user=True, key=f"user_{i}")
-                else:
-                    message(message_data["content"], key=f"bot_{i}")
-    
+                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+
+def get_files_text(uploaded_files):
+    documents = []
+    for uploaded_file in uploaded_files:
+        file_extension = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            temp_file.write(uploaded_file.getvalue())
+            temp_file_path = temp_file.name
+
+        if file_extension == ".pdf":
+            loader = PyMuPDFLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".csv":
+            loader = CSVLoader(file_path=temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".docx":
+            loader = Docx2txtLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".txt":
+            loader = TextLoader(temp_file_path)
+            pages = loader.load()
+        else:
+            st.error("Unsupported file format.")
+            return []
+
+        documents.extend(pages)
+
+        # Remove the temporary file
+        os.remove(temp_file_path)
+        
+    return documents
+
+def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
+    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
+    return vectorstore
+
+def get_text_chunks(pages):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    texts = []
+    for page in pages:
+        text = page.page_content
+        chunks = text_splitter.split_text(text)
+        texts.extend(chunks)
+    return texts
+
+def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
+    try:
+        template = """
+        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
+
+        Question: {question}
+
+        Context: {context}
+
+        Answer:
+        """
+        prompt = ChatPromptTemplate.from_template(template)
+        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        setup_and_retrieval = RunnableParallel(
+            {"context": retriever, "question": RunnablePassthrough()}
+        )
+
+        if selected_model == "Google Gemini":
+            model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
+        elif selected_model == "OpenAI":
+            model = ChatOpenAI(openai_api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
+        else:
+            raise ValueError("Invalid model selected.")
+        output_parser = StrOutputParser()
+        rag_chain = (
+            setup_and_retrieval
+            | prompt
+            | model
+            | output_parser
+        )
+        response = rag_chain.invoke(input_query)
+        return response
+    except Exception as ex:
+        return str(ex)
+
 if __name__ == "__main__":
+    if 'processComplete' not in st.session_state:
+        st.session_state.processComplete = False
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'conversation' not in st.session_state:
+        st.session_state.conversation = None
+    if 'selected_model' not in st.session_state:
+        st.session_state.selected_model = None
+    if 'google_api_key' not in st.session_state:
+        st.session_state.google_api_key = DEFAULT_GOOGLE_API_KEY
+    if 'qdrant_api_key' not in st.session_state:
+        st.session_state.qdrant_api_key = QDRANT_API_KEY
+    if 'qdrant_url' not in st.session_state:
+        st.session_state.qdrant_url = QDRANT_URL
+    if 'openai_api_key' not in st.session_state:
+        st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
+    if 'session_id' not in st.session_state:
+        st.session_state.session_id = None
+
     main()
