@@ -8,15 +8,24 @@ from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
-from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain.document_loaders import Docx2txtLoader
 from dotenv import load_dotenv
 import tempfile
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Default API keys
+DEFAULT_OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
+DEFAULT_GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "YOUR_GOOGLE_API_KEY")
+
+# Qdrant credentials
+QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
+QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
 
 # Set page config at the beginning
 st.set_page_config(page_title="Chat with Your Document", layout="wide")
@@ -105,17 +114,89 @@ def set_mode():
 
 set_mode()
 
-# Default API keys
-DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
-DEFAULT_GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"
+# Function to get files and load their text
+def get_files_text(uploaded_files):
+    documents = []
+    for uploaded_file in uploaded_files:
+        file_extension = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            temp_file.write(uploaded_file.getvalue())
+            temp_file_path = temp_file.name
 
-# Qdrant credentials
-QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
-QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
+        if file_extension == ".pdf":
+            loader = PyMuPDFLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".csv":
+            loader = CSVLoader(file_path=temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".docx":
+            loader = Docx2txtLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".txt":
+            loader = TextLoader(temp_file_path)
+            pages = loader.load()
+        else:
+            st.error("Unsupported file format.")
+            return []
 
+        documents.extend(pages)
+
+        # Remove the temporary file
+        os.remove(temp_file_path)
+
+    return documents
+
+# Function to get text chunks from the documents
+def get_text_chunks(pages):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    texts = []
+    for page in pages:
+        text = page.page_content
+        chunks = text_splitter.split_text(text)
+        texts.extend(chunks)
+    return texts
+
+# Function to get the vector store
+def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
+    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
+    return vectorstore
+
+# Function to perform Retrieval-Augmented Generation (RAG)
+def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
+    try:
+        template = """
+        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
+
+        Question: {question}
+
+        Context: {context}
+
+        Answer:
+        """
+        prompt = ChatPromptTemplate.from_template(template)
+        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        context_docs = retriever.get_relevant_documents(input_query)
+        context_text = "\n".join([doc.page_content for doc in context_docs])
+
+        if selected_model == "OpenAI":
+            chat_model = ChatOpenAI(api_key=openai_api_key)
+        else:
+            chat_model = ChatGoogleGenerativeAI(api_key=google_api_key)
+
+        chat_messages = [
+            HumanMessage(content=input_query),
+            AIMessage(content=context_text)
+        ]
+
+        response = chat_model.chat(chat_messages, prompt_template=prompt, output_parser=StrOutputParser())
+
+        return response
+    except Exception as e:
+        return f"An error occurred: {e}"
+
+# Main function to run the Streamlit app
 def main():
-    load_dotenv()
-
     st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
@@ -150,98 +231,26 @@ def main():
                 else:
                     st.error("Failed to create text chunks.")
             else:
-                st.error("No pages loaded from files.")
+                st.error("No pages were loaded.")
+    
+    # Chat functionality
+    if st.session_state.processComplete:
+        st.header("💬 Chat with Your Document")
+        user_input = st.text_input("Ask a question about your document:", key="input_query")
 
-    if st.session_state.get('processComplete', False):
-        st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask a question about your files:", key="chat_input")
+        if user_input:
+            with st.spinner("Generating response..."):
+                answer = rag(st.session_state.conversation, user_input, DEFAULT_OPENAI_API_KEY, DEFAULT_GOOGLE_API_KEY, st.session_state.selected_model)
+                st.write("**Answer:**", answer)
 
-        if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.get('openai_api_key', DEFAULT_OPENAI_API_KEY), st.session_state.get('google_api_key', DEFAULT_GOOGLE_API_KEY), st.session_state.selected_model)
-            st.session_state.chat_history.append({"content": input_query, "is_user": True})
-            st.session_state.chat_history.append({"content": response_text, "is_user": False})
+                if 'chat_history' not in st.session_state:
+                    st.session_state.chat_history = []
+                st.session_state.chat_history.append((user_input, answer))
 
-        response_container = st.container()
-        with response_container:
-            for i, message_data in enumerate(st.session_state.chat_history):
-                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
-
-def get_files_text(uploaded_files):
-    documents = []
-    for uploaded_file in uploaded_files:
-        file_extension = os.path.splitext(uploaded_file.name)[1]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-            temp_file.write(uploaded_file.getvalue())
-            temp_file_path = temp_file.name
-
-        if file_extension == ".pdf":
-            loader = PyMuPDFLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".csv":
-            loader = CSVLoader(file_path=temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".docx":
-            loader = Docx2txtLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".txt":
-            loader = TextLoader(temp_file_path)
-            pages = loader.load()
-        else:
-            st.error("Unsupported file format.")
-            return []
-
-        documents.extend(pages)
-
-        # Remove the temporary file
-        os.remove(temp_file_path)
-
-    return documents
-
-def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
-    return vectorstore
-
-def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    texts = []
-    for page in pages:
-        text = page.page_content
-        chunks = text_splitter.split_text(text)
-        texts.extend(chunks)
-    return texts
-
-def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
-    try:
-        template = """
-        You are a helpful assistant. You will help the user by providing relevant answers to their questions based on the provided context. If you do not know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
-
-        Question: {question}
-
-        Context: {context}
-
-        Answer:
-        """
-        prompt = ChatPromptTemplate.from_template(template)
-        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-        context_docs = retriever.retrieve(input_query)
-        context_text = "\n\n".join([doc.page_content for doc in context_docs])
-
-        if selected_model == "OpenAI":
-            chat_model = ChatOpenAI(api_key=openai_api_key)
-        else:
-            chat_model = ChatGoogleGenerativeAI(api_key=google_api_key)
-
-        chat_messages = [
-            HumanMessage(content=input_query),
-            AIMessage(content=context_text)
-        ]
-
-        response = chat_model.chat(chat_messages, prompt_template=prompt, output_parser=StrOutputParser())
-
-        return response
-    except Exception as e:
-        return f"An error occurred: {e}"
+        if st.session_state.chat_history:
+            for i, (user_msg, bot_msg) in enumerate(st.session_state.chat_history):
+                message(user_msg, is_user=True, key=f"user_{i}")
+                message(bot_msg, key=f"bot_{i}")
 
 if __name__ == "__main__":
     if 'chat_history' not in st.session_state:
