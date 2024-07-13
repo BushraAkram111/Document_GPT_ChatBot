@@ -3,7 +3,6 @@ import streamlit as st
 from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
 from langchain.callbacks import get_openai_callback
-
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.document_loaders import TextLoader
@@ -96,16 +95,11 @@ def main():
     with st.sidebar:
         uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
         
-        google_api_key = os.getenv("GOOGLE_API_KEY")
-        qdrant_api_key = os.getenv("QDRANT_API_KEY")
-        qdrant_url = os.getenv("QDRANT_URL")
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        
-        st.write(f"Google API Key: {'Set' if google_api_key else 'Not Set'}")
-        st.write(f"Qdrant API Key: {'Set' if qdrant_api_key else 'Not Set'}")
-        st.write(f"Qdrant URL: {'Set' if qdrant_url else 'Not Set'}")
-        st.write(f"OpenAI API Key: {'Set' if openai_api_key else 'Not Set'}")
-        
+        google_api_key = st.text_input("Enter Google API Key", type="password", help="Enter your Google API Key for Gemini model.")
+        qdrant_api_key = st.text_input("Enter Qdrant API Key", type="password", help="Enter your Qdrant API Key.")
+        qdrant_url = st.text_input("Enter Qdrant URL", help="Enter the URL for your Qdrant instance.")
+        openai_api_key = st.text_input("Enter OpenAI API Key", type="password", help="Enter your OpenAI API Key.")
+
         if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
             st.info("Please add your API keys to continue.")
             st.stop()
@@ -193,38 +187,21 @@ def get_text_chunks(pages):
         texts.extend(chunks)
     return texts
 
-def qdrant_client():
-    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    qdrant_key = os.getenv("QDRANT_API_KEY")
-    URL = os.getenv("QDRANT_URL")
-    qdrant_client = QdrantClient(
-        url=URL,
-        api_key=qdrant_key,
-    )
-    qdrant_store = Qdrant(qdrant_client, "Machine_learning", embedding_model)
-    return qdrant_store
-
-vector_db = qdrant_client() 
-
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
-        template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to provide a detailed and comprehensive answer to the question. If you don't know the answer, just say you don't know. Don't try to make up an answer.
-        {context}
-        Question: {question}
-        Answer:"""
-        SYSTEM_TEMPLATE = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are a helpful assistant."),
-                ("user", "{question}"),
-            ]
-        )
-        prompt = SYSTEM_TEMPLATE.partial(question=input_query)
+        template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to provide a detailed and comprehensive answer to the question. If you don't know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
+
+Question: <{question}> 
+
+Context:<{context}> 
+
+Answer:
+        """
+        prompt = ChatPromptTemplate.from_template(template)
+        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
         setup_and_retrieval = RunnableParallel(
-            {
-                "context": vector_db,
-                "question": RunnablePassthrough(),
-            }
-        )
+            {"context": retriever, "question": RunnablePassthrough()})
+
         if selected_model == "Google Gemini":
             model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
         elif selected_model == "OpenAI":
@@ -240,12 +217,8 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         )
         response = rag_chain.invoke(input_query)
         return response
-    except KeyError as ex:
-        st.error(f"KeyError: {str(ex)} - Make sure all environment variables are set.")
-        return str(ex)
     except Exception as ex:
-        st.error(f"Exception: {str(ex)}")
         return str(ex)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
