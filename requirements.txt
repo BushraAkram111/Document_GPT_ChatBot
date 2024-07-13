@@ -7,13 +7,13 @@ pandas==2.2.2
 python-docx==1.1.2
 python-dotenv==1.0.1
 google-api-python-client==2.134.0
-langchain-community==0.2.7  # Updated version
+langchain-community==0.2.7
 langchain-google-genai==1.0.6
 sentence-transformers==2.2.2
 docx2txt==0.8
 langchain-core==0.2.3
 qdrant-client==1.9.1
 transformers==4.30.2
-langchain-anthropic==0.1.19  # Updated version
-langchain-openai==0.1.16  # Updated version
-langchain_groq==0.2.3
+langchain-anthropic==0.1.19
+langchain-openai==0.1.16
+# Remove langchain_groq as it's causing compatibility issues
