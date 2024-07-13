@@ -1,27 +1,31 @@
 import os
 import streamlit as st
 from streamlit_chat import message
-from langchain.chat_models import ChatOpenAI
+from langchain_chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_community.document_loaders import PyMuPDFLoader, TextLoader, CSVLoader, Docx2txtLoader
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader, CSVLoader
+from langchain.document_loaders import Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from dotenv import load_dotenv
 import tempfile
+import os
 
 # Set page config at the beginning
-st.set_page_config(page_title="Chat with Your Document", layout="wide")
+st.set_page_config(page_title="Chat with your file", layout="wide")
 
 # Add CSS styles
 st.markdown("""
     <style>
         .main {
-            background-color:  #f0f0f0;
+            background-color:  #000000;
             padding: 20px;
-            color: #000000;
+            color:#ffffff;
         }
         .sidebar .sidebar-content {
             background-color: #ffffff;
@@ -30,7 +34,7 @@ st.markdown("""
         }
         .sidebar .sidebar-content h2 {
             color: #333333;
-            background-color: #ffffff;
+            background-color: #000000;
         }
         .stButton button {
             background-color: #0073e6;
@@ -64,106 +68,71 @@ st.markdown("""
             width: 100%;
             box-sizing: border-box;
         }
-        .dark-mode .main {
-            background-color: #1e1e1e;
-            color: #ffffff;
-        }
-        .dark-mode .sidebar .sidebar-content {
-            background-color: #2e2e2e;
-            color: #ffffff;
-        }
-        .dark-mode .message {
-            background-color: #2e2e2e;
-            color: #ffffff;
-        }
-        .dark-mode .chat-input {
-            background-color: #3c3c3c;
-            color: #ffffff;
-            border: 1px solid #444444;
-        }
-        .dark-mode .stButton button {
-            background-color: #005bb5;
-        }
-        .dark-mode .stButton button:hover {
-            background-color: #0073e6;
-        }
     </style>
 """, unsafe_allow_html=True)
-
-# Function to check and set the mode
-def set_mode():
-    if st.session_state.get('dark_mode', False):
-        st.markdown('<script>document.body.classList.add("dark-mode");</script>', unsafe_allow_html=True)
-    else:
-        st.session_state['dark_mode'] = False
-
-set_mode()
-
-# Set default values for API keys
-DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
-DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
-
-# Qdrant credentials (hidden from users)
-QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
-QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.qdrant.io"
 
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h2>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h4>", unsafe_allow_html=True)
 
-    # File uploader at the front
-    uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = None
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    if "processComplete" not in st.session_state:
+        st.session_state.processComplete = None
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = None
+    if "selected_model" not in st.session_state:
+        st.session_state.selected_model = "OpenAI"
 
-    if uploaded_files:
-        st.sidebar.header("Model Selection")
-        model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
+    with st.sidebar:
+        uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
+        
+        google_api_key = st.secrets["google_api_key"]
+        qdrant_api_key = st.secrets["qdrant_api_key"]
+        qdrant_url = st.secrets["qdrant_url"]
+        openai_api_key = st.secrets["OPENAI_API_KEY"]
+
+        if not google_api_key or not qdrant_api_key or not qdrant_url or not openai_api_key:
+            st.info("Please add your API keys to continue.")
+            st.stop()
+
+        model_choice = st.radio("Select the model to use", ("OpenAI", "Google Gemini"))
         st.session_state.selected_model = model_choice
 
-        st.sidebar.write("### API Keys")
-        openai_api_key = st.sidebar.text_input("Enter OpenAI API Key:", value=DEFAULT_OPENAI_API_KEY, type="password")
-        google_api_key = st.sidebar.text_input("Enter Google Gemini API Key:", value=DEFAULT_GOOGLE_API_KEY, type="password")
-
-        st.session_state.openai_api_key = openai_api_key
-        st.session_state.google_api_key = google_api_key
-
-        st.session_state.qdrant_api_key = QDRANT_API_KEY
-        st.session_state.qdrant_url = QDRANT_URL
-
-        st.sidebar.write("### Process Files")
-        process = st.sidebar.button("Process")
+        process = st.button("Process")
         if process:
             pages = get_files_text(uploaded_files)
+            st.write("File loaded...")
             if pages:
-                st.sidebar.write(f"Total pages loaded: {len(pages)}")
+                st.write(f"Total pages loaded: {len(pages)}")
                 text_chunks = get_text_chunks(pages)
-                st.sidebar.write(f"File chunks created: {len(text_chunks)} chunks")
+                st.write(f"File chunks created: {len(text_chunks)} chunks")
                 if text_chunks:
-                    vectorstore = get_vectorstore(text_chunks, QDRANT_API_KEY, QDRANT_URL)
-                    st.sidebar.write("Vector Store Created...")
+                    vectorstore = get_vectorstore(text_chunks, qdrant_api_key, qdrant_url)
+                    st.write("Vector Store Created...")
                     st.session_state.conversation = vectorstore
                     st.session_state.processComplete = True
                     st.session_state.session_id = os.urandom(16).hex()  # Initialize a unique session ID
-                    st.success("Processing complete! You can now ask questions about your files.")
                 else:
                     st.error("Failed to create text chunks.")
             else:
                 st.error("No pages loaded from files.")
 
     if st.session_state.processComplete:
-        st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask a question about your files:", key="chat_input")
-
+        input_query = st.text_input("Ask a Question about your files.")
         if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+            response_text = rag(st.session_state.conversation, input_query, openai_api_key, google_api_key, st.session_state.selected_model)
             st.session_state.chat_history.append({"content": input_query, "is_user": True})
             st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
-        response_container = st.container()
-        with response_container:
-            for i, message_data in enumerate(st.session_state.chat_history):
-                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+            response_container = st.container()
+            with response_container:
+                for i, message_data in enumerate(st.session_state.chat_history):
+                    message(message_data["content"], is_user=message_data["is_user"], key=str(i))
 
 def get_files_text(uploaded_files):
     documents = []
@@ -193,57 +162,70 @@ def get_files_text(uploaded_files):
 
         # Remove the temporary file
         os.remove(temp_file_path)
-
+        
     return documents
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
     embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
+    vectorstore = Qdrant.from_texts(texts=text_chunks, embedding=embeddings_model, collection_name="Machine_learning", url=qdrant_url, api_key=qdrant_api_key,force_recreate=True)
     return vectorstore
 
 def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=900,
+        chunk_overlap=100,
+        length_function=len,
+        is_separator_regex=False,
+    )
     texts = []
-    for doc in pages:
-        chunks = text_splitter.split_text(doc.page_content)
+    for page in pages:
+        chunks = text_splitter.split_text(page.page_content)
         texts.extend(chunks)
     return texts
 
+def get_qdrant_client(qdrant_api_key, qdrant_url):
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    qdrant_client = QdrantClient(
+        url=qdrant_url,
+        api_key=qdrant_api_key,
+    )
+    qdrant_store = Qdrant(qdrant_client, "Machine_learning", embedding_model)
+    return qdrant_store
+
+vector_db = get_qdrant_client(qdrant_api_key, qdrant_url) 
+
 def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
     try:
-        template = """
-        You are a helpful assistant. Provide accurate and relevant answers based on the context of the documents uploaded.
-        If you do not know the answer, you should say "I don't know."
-        Context: {context}
-        Question: {question}
-        """
+        template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to provide a detailed and comprehensive answer to the question. If you don't know the answer, just say that you don't know. Offer as much relevant information as possible in your response.
 
-        context = vector_db.similarity_search(input_query)
-        context_text = " ".join([c.page_content for c in context])
-        prompt = template.format(context=context_text, question=input_query)
+Question: <{question}> 
 
-        if selected_model == "OpenAI":
-            model = ChatOpenAI(openai_api_key=openai_api_key)
-            response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response.choices[0].message['content']  # Access the response text correctly
+Context:<{context}> 
 
-        elif selected_model == "Google Gemini":
-            model = ChatGoogleGenerativeAI(api_key=google_api_key)
-            response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response.choices[0].message['content']  # Access the response text correctly
+Answer:
+    """
+        prompt = ChatPromptTemplate.from_template(template)
+        retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        setup_and_retrieval = RunnableParallel(
+            {"context": retriever, "question": RunnablePassthrough()})
 
+        if selected_model == "Google Gemini":
+            model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
+        elif selected_model == "OpenAI":
+            model = ChatOpenAI(api_key=openai_api_key, model_name='gpt-3.5-turbo', temperature=0)
         else:
-            response_text = "Invalid model selected."
-
-        return response_text
-
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
+            raise ValueError("Invalid model selected.")           
+        output_parser = StrOutputParser()
+        rag_chain = (
+            setup_and_retrieval
+            | prompt
+            | model
+            | output_parser
+        )
+        response = rag_chain.invoke(input_query)
+        return response
+    except Exception as ex:
+        return str(ex)
 
 if __name__ == "__main__":
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'processComplete' not in st.session_state:
-        st.session_state.processComplete = False
-
     main()
