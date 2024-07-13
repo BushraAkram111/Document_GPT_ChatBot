@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-from streamlit_chat import message
 from langchain.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, HumanMessage
@@ -180,18 +179,17 @@ def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
         context_text = "\n".join([doc.page_content for doc in context_docs])
 
         if selected_model == "OpenAI":
-            chat_model = ChatOpenAI(api_key=openai_api_key)
+            chat_model = ChatOpenAI(model="gpt-3.5-turbo", api_key=openai_api_key)
         else:
             chat_model = ChatGoogleGenerativeAI(api_key=google_api_key)
 
-        chat_messages = [
-            HumanMessage(content=input_query),
-            AIMessage(content=context_text)
-        ]
+        response = chat_model(
+            [HumanMessage(content=input_query), AIMessage(content=context_text)],
+            prompt_template=prompt,
+            output_parser=StrOutputParser()
+        )
 
-        response = chat_model.chat(chat_messages, prompt_template=prompt, output_parser=StrOutputParser())
-
-        return response
+        return response['text']
     except Exception as e:
         return f"An error occurred: {e}"
 
@@ -229,11 +227,10 @@ def main():
                     except ResponseHandlingException as e:
                         st.error(f"Error in creating vector store: {e}")
                 else:
-                    st.error("Failed to create text chunks.")
+                    st.error("No text chunks created.")
             else:
-                st.error("No pages were loaded.")
-    
-    # Chat functionality
+                st.error("No pages loaded from the files.")
+
     if st.session_state.processComplete:
         st.header("💬 Chat with Your Document")
         user_input = st.text_input("Ask a question about your document:", key="input_query")
@@ -249,8 +246,8 @@ def main():
 
         if st.session_state.chat_history:
             for i, (user_msg, bot_msg) in enumerate(st.session_state.chat_history):
-                message(user_msg, is_user=True, key=f"user_{i}")
-                message(bot_msg, key=f"bot_{i}")
+                st.write(f"**You:** {user_msg}", unsafe_allow_html=True)
+                st.write(f"**Bot:** {bot_msg}", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     if 'chat_history' not in st.session_state:
