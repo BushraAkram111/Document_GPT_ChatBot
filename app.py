@@ -9,10 +9,10 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.document_loaders import Docx2txtLoader
 from langchain_community.vectorstores import Qdrant
-from langchain_qdrant import Qdrant
 from streamlit_chat import message
 import streamlit as st
-import os,tempfile
+import os
+import tempfile
 import qdrant_client
 
 # Set page config at the beginning
@@ -90,7 +90,7 @@ def main():
         st.session_state.selected_model = "OpenAI"
 
     with st.sidebar:
-        uploaded_files = st.file_uploader("Upload your file", type=['pdf', 'docx', 'csv'], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Upload your file", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True)
 
         process = st.button("Process")
         if process:
@@ -157,15 +157,17 @@ def get_files_text(uploaded_files):
 def get_embeddings():
     embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     return embeddings_model
+
 def get_vectorstore(text_chunks):
     vectorstore = Qdrant.from_texts(
         text_chunks,
-        api_key = api_key,
+        api_key=api_key,
         embedding=get_embeddings(),
         url=url,
         prefer_grpc=True,
         collection_name="my_documents",
-        force_recreate=True)
+        force_recreate=True
+    )
 
     return vectorstore
 
@@ -184,11 +186,13 @@ def get_text_chunks(pages):
 
 def _qdrant_client():
     client = qdrant_client.QdrantClient(
-    url,
-    api_key=api_key)
+        url,
+        api_key=api_key
+    )
     vectorstore = Qdrant(
-    client=client, collection_name="my_documents", 
-    embeddings=get_embeddings())
+        client=client, collection_name="my_documents",
+        embeddings=get_embeddings()
+    )
 
     return vectorstore
 
@@ -206,9 +210,10 @@ def rag(vector_db, input_query):
         prompt = ChatPromptTemplate.from_template(template)
         retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 5})
         setup_and_retrieval = RunnableParallel(
-            {"context": retriever, "question": RunnablePassthrough()})
+            {"context": retriever, "question": RunnablePassthrough()}
+        )
 
-        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3,google_api_key=google_api_key)         
+        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3, google_api_key=google_api_key)
         output_parser = StrOutputParser()
         rag_chain = (
             setup_and_retrieval
