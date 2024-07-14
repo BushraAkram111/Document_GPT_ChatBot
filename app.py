@@ -19,113 +19,73 @@ st.set_page_config(page_title="Chat with Your Document", layout="wide")
 st.markdown("""
     <style>
         .main {
-            background-color: #f0f0f0; /* Light grey background */
+            background-color:  #f0f0f0;
             padding: 20px;
-            color: #000000; /* Black text color */
+            color: #000000;
         }
         .sidebar .sidebar-content {
-            background-color: #ffffff; /* White background for sidebar */
+            background-color: #ffffff;
             border-radius: 10px;
             padding: 20px;
         }
         .sidebar .sidebar-content h2 {
-            color: #333333; /* Dark grey text color for sidebar headers */
-            background-color: #ffffff; /* White background for sidebar headers */
+            color: #333333;
+            background-color: #ffffff;
         }
         .stButton button {
-            background-color: #4CAF50; /* Green button background */
-            color: #ffffff; /* White text color for buttons */
+            background-color: #0073e6;
+            color: #ffffff;
             border: none;
             border-radius: 5px;
             padding: 10px 20px;
             cursor: pointer;
         }
         .stButton button:hover {
-            background-color: #45a049; /* Darker green on hover */
+            background-color: #005bb5;
         }
         .message {
-            background-color: #ffffff; /* White background for messages */
+            background-color: #ffffff;
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Light shadow for messages */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .message.user {
-            background-color: #e0f7fa; /* Light cyan background for user messages */
+            background-color: #e6f7ff;
         }
         .message.bot {
-            background-color: #f0f0f0; /* Light grey background for bot messages */
+            background-color: #f0f0f0;
         }
         .chat-input {
-            background-color: #ffffff; /* White background for input field */
-            border: 1px solid #d9d9d9; /* Light grey border */
+            background-color: #ffffff;
+            border: 1px solid #d9d9d9;
             border-radius: 10px;
             padding: 10px;
             width: 100%;
             box-sizing: border-box;
-            color: #000000; /* Black text color */
         }
         .dark-mode .main {
-            background-color: #2e2e2e; /* Dark grey background for dark mode */
-            color: #ffffff; /* White text color for dark mode */
+            background-color: #1e1e1e;
+            color: #ffffff;
         }
         .dark-mode .sidebar .sidebar-content {
-            background-color: #3c3c3c; /* Darker grey for sidebar in dark mode */
-            color: #ffffff; /* White text color for sidebar in dark mode */
+            background-color: #2e2e2e;
+            color: #ffffff;
         }
         .dark-mode .message {
-            background-color: #3c3c3c; /* Darker grey background for messages in dark mode */
-            color: #ffffff; /* White text color for messages in dark mode */
+            background-color: #2e2e2e;
+            color: #ffffff;
         }
         .dark-mode .chat-input {
-            background-color: #4a4a4a; /* Even darker grey for input field in dark mode */
-            color: #ffffff; /* White text color for input field in dark mode */
-            border: 1px solid #5a5a5a; /* Slightly lighter grey border for input field */
+            background-color: #3c3c3c;
+            color: #ffffff;
+            border: 1px solid #444444;
         }
         .dark-mode .stButton button {
-            background-color: #5a5a5a; /* Dark grey background for buttons in dark mode */
+            background-color: #005bb5;
         }
         .dark-mode .stButton button:hover {
-            background-color: #6a6a6a; /* Slightly lighter grey on hover */
-        }
-        /* Custom styles for success messages */
-        .stSuccess {
-            background-color: #ffffff; /* White background for success messages */
-            color: #000000; /* Black text color */
-            border: 1px solid #000000; /* Black border */
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        /* Custom styles for the main heading */
-        .main-heading {
-            background-color: #ffffff; /* White background for the main heading */
-            color: #000000; /* Black text color */
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-        }
-        /* Custom styles for the chat input prompt */
-        .chat-input-prompt {
-            background-color: #ffffff; /* White background for input prompt */
-            color: #000000; /* Black text color */
-            border: 1px solid #d9d9d9; /* Light grey border */
-            border-radius: 10px;
-            padding: 10px;
-            margin: 10px 0;
-        }
-        /* Custom styles for subheader */
-        .stSubheader {
-            color: #000000; /* Black text color for subheader */
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #f0f0f0; /* Light grey background for subheader */
-            border-radius: 5px;
-        }
-        /* Custom styles for text input */
-        .stTextInput {
-            background-color: #ffffff; /* White background for text input */
-            color: #000000; /* Black text color for text input */
+            background-color: #0073e6;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -150,8 +110,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 class='main-heading'>Chat with Documents</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 class='main-heading'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
@@ -193,24 +153,97 @@ def main():
 
     if st.session_state.processComplete:
         st.subheader("Chat with Your Document")
-        st.markdown("<div class='chat-input-prompt'>Ask a question about your files:</div>", unsafe_allow_html=True)
-        input_query = st.text_input("", key="chat_input", placeholder="Type your question here...")
+        input_query = st.text_input("Ask a question about your files:", key="chat_input")
 
-        if st.button("Submit"):
-            if input_query:
-                with st.spinner("Fetching response..."):
-                    answer = rag(
-                        st.session_state.conversation,
-                        input_query,
-                        st.session_state.openai_api_key,
-                        st.session_state.google_api_key,
-                        st.session_state.selected_model
-                    )
-                st.markdown(f"**Answer:** {answer}")
+        if input_query:
+            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
+            st.session_state.chat_history.append({"content": input_query, "is_user": True})
+            st.session_state.chat_history.append({"content": response_text, "is_user": False})
 
-        if st.session_state.chat_history:
-            for chat in st.session_state.chat_history:
-                message(chat['message'], is_user=chat['is_user'])
+        response_container = st.container()
+        with response_container:
+            for i, message_data in enumerate(st.session_state.chat_history):
+                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
+
+def get_files_text(uploaded_files):
+    documents = []
+    for uploaded_file in uploaded_files:
+        file_extension = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            temp_file.write(uploaded_file.getvalue())
+            temp_file_path = temp_file.name
+
+        if file_extension == ".pdf":
+            loader = PyMuPDFLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".csv":
+            loader = CSVLoader(file_path=temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".docx":
+            loader = Docx2txtLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".txt":
+            loader = TextLoader(temp_file_path)
+            pages = loader.load()
+        else:
+            st.error("Unsupported file format.")
+            return []
+
+        documents.extend(pages)
+
+        # Remove the temporary file
+        os.remove(temp_file_path)
+
+    return documents
+
+def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
+    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
+    return vectorstore
+
+def get_text_chunks(pages):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    texts = []
+    for doc in pages:
+        chunks = text_splitter.split_text(doc.page_content)
+        texts.extend(chunks)
+    return texts
+
+def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
+    try:
+        template = """
+        You are a helpful assistant. Provide accurate and relevant answers based on the context of the documents uploaded.
+        If you do not know the answer, you should say "I don't know."
+        Context: {context}
+        Question: {question}
+        """
+
+        context = vector_db.similarity_search(input_query)
+        context_text = " ".join([c.page_content for c in context])
+        prompt = template.format(context=context_text, question=input_query)
+
+        if selected_model == "OpenAI":
+            model = ChatOpenAI(openai_api_key=openai_api_key)
+            response = model([HumanMessage(content=prompt), AIMessage(content="")])
+            response_text = response['text']  # Access the response text correctly
+
+        elif selected_model == "Google Gemini":
+            model = ChatGoogleGenerativeAI(api_key=google_api_key)
+            response = model([HumanMessage(content=prompt), AIMessage(content="")])
+            response_text = response['text']  # Access the response text correctly
+
+        else:
+            response_text = "Invalid model selected."
+
+        return response_text
+
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 if __name__ == "__main__":
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'processComplete' not in st.session_state:
+        st.session_state.processComplete = False
+
     main()
