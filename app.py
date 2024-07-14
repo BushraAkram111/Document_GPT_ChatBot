@@ -21,20 +21,19 @@ st.markdown("""
         .main {
             background-color:  #f0f0f0;
             padding: 20px;
-            color: #000000; /* Text color for main content */
+            color: #000000;
         }
         .sidebar .sidebar-content {
-            background-color: #1e1e1e; /* Dark background for sidebar */
-            color: #ffffff; /* White text color for sidebar */
+            background-color: #ffffff;
             border-radius: 10px;
             padding: 20px;
         }
         .sidebar .sidebar-content h2 {
-            color: #ffffff; /* White color for sidebar headings */
-            background-color: #1e1e1e; /* Match the background color */
+            color: #333333;
+            background-color: #ffffff;
         }
         .stButton button {
-            background-color: #0073e6; /* Blue button color */
+            background-color: #0073e6;
             color: #ffffff;
             border: none;
             border-radius: 5px;
@@ -42,7 +41,7 @@ st.markdown("""
             cursor: pointer;
         }
         .stButton button:hover {
-            background-color: #005bb5; /* Darker blue on hover */
+            background-color: #005bb5;
         }
         .message {
             background-color: #ffffff;
@@ -52,7 +51,7 @@ st.markdown("""
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .message.user {
-            background-color: #e6f7ff; /* Light blue background for user messages */
+            background-color: #e6f7ff;
         }
         .message.bot {
             background-color: #f0f0f0;
@@ -88,26 +87,9 @@ st.markdown("""
         .dark-mode .stButton button:hover {
             background-color: #0073e6;
         }
-        /* Remove the blue color from the text */
-        .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
-            color: #000000; /* Black color for text */
-        }
-        .sidebar .stButton button {
-            background-color: #0073e6; /* Blue button color for sidebar */
-            color: #ffffff;
-        }
-        .sidebar .stButton button:hover {
-            background-color: #005bb5; /* Darker blue on hover */
-        }
-        /* Dark mode styles */
-        .dark-mode .stButton button {
-            background-color: #005bb5;
-        }
-        .dark-mode .stButton button:hover {
-            background-color: #0073e6;
-        }
-        .dark-mode .sidebar .sidebar-content h2 {
-            color: #ffffff;
+        /* Updated CSS for text colors */
+        .text-blue {
+            color: #0073e6;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -132,8 +114,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center;'>Chat with Documents</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 class='text-blue' style='text-align: center;'>Chat with Documents</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 class='text-blue' style='text-align: center;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
@@ -208,19 +190,23 @@ def get_files_text(uploaded_files):
             loader = TextLoader(temp_file_path)
             pages = loader.load()
         else:
-            st.error(f"Unsupported file type: {file_extension}")
-            continue
+            st.error("Unsupported file format.")
+            return []
+
         documents.extend(pages)
+
+        # Remove the temporary file
+        os.remove(temp_file_path)
+
     return documents
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embedding = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-    vectorstore = Qdrant.from_texts(text_chunks, embedding, client=client, collection_name="docs")
+    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
     return vectorstore
 
 def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     texts = []
     for doc in pages:
         chunks = text_splitter.split_text(doc.page_content)
