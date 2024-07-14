@@ -90,11 +90,28 @@ st.markdown("""
         }
         /* Custom styles for success messages */
         .stSuccess {
-            background-color: #d4edda; /* Light green background for success messages */
-            color: #155724; /* Dark green text color */
-            border: 1px solid #c3e6cb; /* Light green border */
+            background-color: #ffffff; /* White background for success messages */
+            color: #000000; /* Black text color */
+            border: 1px solid #000000; /* Black border */
             padding: 10px;
             border-radius: 5px;
+            margin: 10px 0;
+        }
+        /* Custom styles for the main heading */
+        .main-heading {
+            background-color: #ffffff; /* White background for the main heading */
+            color: #000000; /* Black text color */
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        /* Custom styles for the chat input prompt */
+        .chat-input-prompt {
+            background-color: #ffffff; /* White background for input prompt */
+            color: #000000; /* Black text color */
+            border: 1px solid #d9d9d9; /* Light grey border */
+            border-radius: 10px;
+            padding: 10px;
             margin: 10px 0;
         }
     </style>
@@ -120,8 +137,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Chat with Documents</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #4CAF50;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-heading'>Chat with Documents</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 class='main-heading'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
@@ -163,7 +180,7 @@ def main():
 
     if st.session_state.processComplete:
         st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask a question about your files:", key="chat_input")
+        input_query = st.text_input("Ask a question about your files:", key="chat_input", placeholder="Type your question here...", help="Enter your question here.")
 
         if input_query:
             response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
@@ -180,17 +197,17 @@ def get_files_text(uploaded_files):
     for uploaded_file in uploaded_files:
         file_extension = os.path.splitext(uploaded_file.name)[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-            temp_file.write(uploaded_file.getvalue())
+            temp_file.write(uploaded_file.read())
             temp_file_path = temp_file.name
 
         if file_extension == ".pdf":
             loader = PyMuPDFLoader(temp_file_path)
             pages = loader.load()
-        elif file_extension == ".csv":
-            loader = CSVLoader(file_path=temp_file_path)
-            pages = loader.load()
         elif file_extension == ".docx":
-            loader = Docx2txtLoader(temp_file_path)
+            loader = TextLoader(temp_file_path)
+            pages = loader.load()
+        elif file_extension == ".csv":
+            loader = TextLoader(temp_file_path)
             pages = loader.load()
         elif file_extension == ".txt":
             loader = TextLoader(temp_file_path)
