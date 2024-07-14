@@ -19,41 +19,41 @@ st.set_page_config(page_title="Chat with Your Document", layout="wide")
 st.markdown("""
     <style>
         .main {
-            background-color:  #1e1e1e;
-            color: #ffffff;
+            background-color:  #121212;
+            color: #e0e0e0;
         }
         .sidebar .sidebar-content {
-            background-color: #2e2e2e;
-            color: #ffffff;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
         }
         .sidebar .sidebar-content h2 {
-            color: #ffffff;
-            background-color: #2e2e2e;
+            color: #e0e0e0;
+            background-color: #1e1e1e;
         }
         .stButton button {
-            background-color: #005bb5;
-            color: #ffffff;
+            background-color: #333333;
+            color: #e0e0e0;
             border: none;
             border-radius: 5px;
             padding: 10px 20px;
             cursor: pointer;
         }
         .stButton button:hover {
-            background-color: #0073e6;
+            background-color: #444444;
         }
         .message {
-            background-color: #2e2e2e;
-            color: #ffffff;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
         }
         .message.user {
-            background-color: #003366;
+            background-color: #2b2b2b;
         }
         .message.bot {
-            background-color: #2e2e2e;
+            background-color: #1e1e1e;
         }
         .chat-input {
-            background-color: #3c3c3c;
-            color: #ffffff;
+            background-color: #333333;
+            color: #e0e0e0;
             border: 1px solid #444444;
             border-radius: 10px;
             padding: 10px;
@@ -74,8 +74,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Chat with Documents</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #e0e0e0;'>Chat with Documents</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #b0bec5;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
