@@ -87,9 +87,38 @@ st.markdown("""
         .dark-mode .stButton button:hover {
             background-color: #0073e6;
         }
-        /* Updated CSS for text colors */
+        /* Updated CSS for text colors and responsive design */
         .text-blue {
             color: #0073e6;
+        }
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main {
+                padding: 10px;
+            }
+            .sidebar .sidebar-content {
+                padding: 10px;
+            }
+            .stButton button {
+                padding: 8px 16px;
+            }
+            .message {
+                padding: 10px;
+            }
+            .chat-input {
+                padding: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            .text-blue {
+                font-size: 1.5em;
+            }
+            h1.text-blue {
+                font-size: 1.5em;
+            }
+            h3.text-blue {
+                font-size: 1.2em;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
