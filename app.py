@@ -99,6 +99,16 @@ st.markdown("""
         .sidebar .stButton button:hover {
             background-color: #005bb5; /* Darker blue on hover */
         }
+        /* Dark mode styles */
+        .dark-mode .stButton button {
+            background-color: #005bb5;
+        }
+        .dark-mode .stButton button:hover {
+            background-color: #0073e6;
+        }
+        .dark-mode .sidebar .sidebar-content h2 {
+            color: #ffffff;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -198,19 +208,15 @@ def get_files_text(uploaded_files):
             loader = TextLoader(temp_file_path)
             pages = loader.load()
         else:
-            st.error("Unsupported file format.")
-            return []
-
+            st.error(f"Unsupported file type: {file_extension}")
+            continue
         documents.extend(pages)
-
-        # Remove the temporary file
-        os.remove(temp_file_path)
-
     return documents
 
 def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
+    embedding = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+    vectorstore = Qdrant.from_texts(text_chunks, embedding, client=client, collection_name="docs")
     return vectorstore
 
 def get_text_chunks(pages):
