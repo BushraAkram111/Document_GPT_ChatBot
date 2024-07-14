@@ -15,89 +15,104 @@ import tempfile
 # Set page config at the beginning
 st.set_page_config(page_title="Chat with Your Document", layout="wide")
 
-# Add CSS styles
-st.markdown("""
-    <style>
-        .main {
-            background-color:  #f0f0f0;
-            padding: 20px;
-            color: #000000;
-        }
-        .sidebar .sidebar-content {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 20px;
-        }
-        .sidebar .sidebar-content h2 {
-            color: #333333;
-            background-color: #ffffff;
-        }
-        .stButton button {
-            background-color: #0073e6;
-            color: #ffffff;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            cursor: pointer;
-        }
-        .stButton button:hover {
-            background-color: #005bb5;
-        }
-        .message {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .message.user {
-            background-color: #e6f7ff;
-        }
-        .message.bot {
-            background-color: #f0f0f0;
-        }
-        .chat-input {
-            background-color: #ffffff;
-            border: 1px solid #d9d9d9;
-            border-radius: 10px;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .dark-mode .main {
-            background-color: #1e1e1e;
-            color: #ffffff;
-        }
-        .dark-mode .sidebar .sidebar-content {
-            background-color: #2e2e2e;
-            color: #ffffff;
-        }
-        .dark-mode .message {
-            background-color: #2e2e2e;
-            color: #ffffff;
-        }
-        .dark-mode .chat-input {
-            background-color: #3c3c3c;
-            color: #ffffff;
-            border: 1px solid #444444;
-        }
-        .dark-mode .stButton button {
-            background-color: #005bb5;
-        }
-        .dark-mode .stButton button:hover {
-            background-color: #0073e6;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Function to check and set the mode
+# Function to set the mode
 def set_mode():
     if st.session_state.get('dark_mode', False):
-        st.markdown('<script>document.body.classList.add("dark-mode");</script>', unsafe_allow_html=True)
+        st.markdown('<style>body {background-color: #1e1e1e; color: #ffffff;}</style>', unsafe_allow_html=True)
+        st.markdown("""
+            <style>
+                .main {
+                    background-color:  #1e1e1e;
+                    color: #ffffff;
+                }
+                .sidebar .sidebar-content {
+                    background-color: #2e2e2e;
+                    color: #ffffff;
+                }
+                .sidebar .sidebar-content h2 {
+                    color: #ffffff;
+                    background-color: #2e2e2e;
+                }
+                .stButton button {
+                    background-color: #005bb5;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 10px 20px;
+                    cursor: pointer;
+                }
+                .stButton button:hover {
+                    background-color: #0073e6;
+                }
+                .message {
+                    background-color: #2e2e2e;
+                    color: #ffffff;
+                }
+                .message.user {
+                    background-color: #003366;
+                }
+                .message.bot {
+                    background-color: #2e2e2e;
+                }
+                .chat-input {
+                    background-color: #3c3c3c;
+                    color: #ffffff;
+                    border: 1px solid #444444;
+                    border-radius: 10px;
+                    padding: 10px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+            </style>
+        """, unsafe_allow_html=True)
     else:
-        st.session_state['dark_mode'] = False
-
-set_mode()
+        st.markdown('<style>body {background-color: #f0f0f0; color: #000000;}</style>', unsafe_allow_html=True)
+        st.markdown("""
+            <style>
+                .main {
+                    background-color:  #f0f0f0;
+                    color: #000000;
+                }
+                .sidebar .sidebar-content {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                .sidebar .sidebar-content h2 {
+                    color: #333333;
+                    background-color: #ffffff;
+                }
+                .stButton button {
+                    background-color: #0073e6;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 10px 20px;
+                    cursor: pointer;
+                }
+                .stButton button:hover {
+                    background-color: #005bb5;
+                }
+                .message {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                .message.user {
+                    background-color: #e6f7ff;
+                }
+                .message.bot {
+                    background-color: #f0f0f0;
+                }
+                .chat-input {
+                    background-color: #ffffff;
+                    color: #000000;
+                    border: 1px solid #d9d9d9;
+                    border-radius: 10px;
+                    padding: 10px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
 # Set default values for API keys
 DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
@@ -110,27 +125,30 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Chat with Documents</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.title("Chat with Your Document")
 
-    # File uploader at the front
+    # Mode toggle
+    dark_mode = st.sidebar.checkbox("Dark Mode", value=st.session_state.get('dark_mode', False))
+    st.session_state.dark_mode = dark_mode
+    set_mode()
+
+    st.sidebar.write("### API Keys")
+    openai_api_key = DEFAULT_OPENAI_API_KEY
+    google_api_key = DEFAULT_GOOGLE_API_KEY
+
+    st.session_state.openai_api_key = openai_api_key
+    st.session_state.google_api_key = google_api_key
+
+    st.session_state.qdrant_api_key = QDRANT_API_KEY
+    st.session_state.qdrant_url = QDRANT_URL
+
+    st.sidebar.write("### Model Selection")
+    model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
+    st.session_state.selected_model = model_choice
+
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
 
     if uploaded_files:
-        st.sidebar.header("Model Selection")
-        model_choice = st.sidebar.radio("Select the model to use", ("Google Gemini", "OpenAI"))
-        st.session_state.selected_model = model_choice
-
-        st.sidebar.write("### API Keys")
-        openai_api_key = DEFAULT_OPENAI_API_KEY
-        google_api_key = DEFAULT_GOOGLE_API_KEY
-
-        st.session_state.openai_api_key = openai_api_key
-        st.session_state.google_api_key = google_api_key
-
-        st.session_state.qdrant_api_key = QDRANT_API_KEY
-        st.session_state.qdrant_url = QDRANT_URL
-
         st.sidebar.write("### Process Files")
         process = st.sidebar.button("Process")
         if process:
