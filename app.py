@@ -128,8 +128,12 @@ def main():
     st.title("Chat with Your Document")
 
     # Mode toggle
-    dark_mode = st.sidebar.checkbox("Dark Mode", value=st.session_state.get('dark_mode', False))
-    st.session_state.dark_mode = dark_mode
+    if not st.session_state.get('dark_mode', False):
+        dark_mode = st.sidebar.checkbox("Dark Mode", value=False)
+        st.session_state.dark_mode = dark_mode
+    else:
+        st.session_state.dark_mode = True
+
     set_mode()
 
     st.sidebar.write("### API Keys")
