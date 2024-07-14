@@ -114,6 +114,19 @@ st.markdown("""
             padding: 10px;
             margin: 10px 0;
         }
+        /* Custom styles for subheader */
+        .stSubheader {
+            color: #000000; /* Black text color for subheader */
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f0f0f0; /* Light grey background for subheader */
+            border-radius: 5px;
+        }
+        /* Custom styles for text input */
+        .stTextInput {
+            background-color: #ffffff; /* White background for text input */
+            color: #000000; /* Black text color for text input */
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -180,93 +193,24 @@ def main():
 
     if st.session_state.processComplete:
         st.subheader("Chat with Your Document")
-        input_query = st.text_input("Ask a question about your files:", key="chat_input", placeholder="Type your question here...", help="Enter your question here.")
+        st.markdown("<div class='chat-input-prompt'>Ask a question about your files:</div>", unsafe_allow_html=True)
+        input_query = st.text_input("", key="chat_input", placeholder="Type your question here...")
 
-        if input_query:
-            response_text = rag(st.session_state.conversation, input_query, st.session_state.openai_api_key, st.session_state.google_api_key, st.session_state.selected_model)
-            st.session_state.chat_history.append({"content": input_query, "is_user": True})
-            st.session_state.chat_history.append({"content": response_text, "is_user": False})
+        if st.button("Submit"):
+            if input_query:
+                with st.spinner("Fetching response..."):
+                    answer = rag(
+                        st.session_state.conversation,
+                        input_query,
+                        st.session_state.openai_api_key,
+                        st.session_state.google_api_key,
+                        st.session_state.selected_model
+                    )
+                st.markdown(f"**Answer:** {answer}")
 
-        response_container = st.container()
-        with response_container:
-            for i, message_data in enumerate(st.session_state.chat_history):
-                message(message_data["content"], is_user=message_data["is_user"], key=str(i))
-
-def get_files_text(uploaded_files):
-    documents = []
-    for uploaded_file in uploaded_files:
-        file_extension = os.path.splitext(uploaded_file.name)[1]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-            temp_file.write(uploaded_file.read())
-            temp_file_path = temp_file.name
-
-        if file_extension == ".pdf":
-            loader = PyMuPDFLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".docx":
-            loader = TextLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".csv":
-            loader = TextLoader(temp_file_path)
-            pages = loader.load()
-        elif file_extension == ".txt":
-            loader = TextLoader(temp_file_path)
-            pages = loader.load()
-        else:
-            st.error(f"Unsupported file type: {file_extension}")
-            return []
-
-        documents.extend(pages)
-    return documents
-
-def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
-    embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectorstore = Qdrant.from_texts(text_chunks, embeddings_model, api_key=qdrant_api_key, url=qdrant_url)
-    return vectorstore
-
-def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    texts = []
-    for doc in pages:
-        chunks = text_splitter.split_text(doc.page_content)
-        texts.extend(chunks)
-    return texts
-
-def rag(vector_db, input_query, openai_api_key, google_api_key, selected_model):
-    try:
-        template = """
-        You are a helpful assistant. Provide accurate and relevant answers based on the context of the documents uploaded.
-        If you do not know the answer, you should say "I don't know."
-        Context: {context}
-        Question: {question}
-        """
-
-        context = vector_db.similarity_search(input_query)
-        context_text = " ".join([c.page_content for c in context])
-        prompt = template.format(context=context_text, question=input_query)
-
-        if selected_model == "OpenAI":
-            model = ChatOpenAI(openai_api_key=openai_api_key)
-            response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response['text']  # Access the response text correctly
-
-        elif selected_model == "Google Gemini":
-            model = ChatGoogleGenerativeAI(api_key=google_api_key)
-            response = model([HumanMessage(content=prompt), AIMessage(content="")])
-            response_text = response['text']  # Access the response text correctly
-
-        else:
-            response_text = "Invalid model selected."
-
-        return response_text
-
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
+        if st.session_state.chat_history:
+            for chat in st.session_state.chat_history:
+                message(chat['message'], is_user=chat['is_user'])
 
 if __name__ == "__main__":
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'processComplete' not in st.session_state:
-        st.session_state.processComplete = False
-
     main()
