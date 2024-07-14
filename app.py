@@ -21,7 +21,7 @@ st.markdown("""
         .main {
             background-color:  #f0f0f0;
             padding: 20px;
-            color: #000000;
+            color: #000000; /* Change the text color to black */
         }
         .sidebar .sidebar-content {
             background-color: #ffffff;
@@ -33,7 +33,7 @@ st.markdown("""
             background-color: #ffffff;
         }
         .stButton button {
-            background-color: #0073e6;
+            background-color: #0073e6; /* Blue button color */
             color: #ffffff;
             border: none;
             border-radius: 5px;
@@ -41,7 +41,7 @@ st.markdown("""
             cursor: pointer;
         }
         .stButton button:hover {
-            background-color: #005bb5;
+            background-color: #005bb5; /* Darker blue on hover */
         }
         .message {
             background-color: #ffffff;
@@ -51,7 +51,7 @@ st.markdown("""
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .message.user {
-            background-color: #e6f7ff;
+            background-color: #e6f7ff; /* Light blue background for user messages */
         }
         .message.bot {
             background-color: #f0f0f0;
@@ -87,6 +87,10 @@ st.markdown("""
         .dark-mode .stButton button:hover {
             background-color: #0073e6;
         }
+        /* Remove the blue color from the text */
+        .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+            color: #000000; /* Black color for text */
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,8 +114,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Chat with Documents</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
