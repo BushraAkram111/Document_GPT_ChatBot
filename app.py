@@ -21,16 +21,17 @@ st.markdown("""
         .main {
             background-color:  #f0f0f0;
             padding: 20px;
-            color: #000000; /* Change the text color to black */
+            color: #000000; /* Text color for main content */
         }
         .sidebar .sidebar-content {
-            background-color: #ffffff;
+            background-color: #1e1e1e; /* Dark background for sidebar */
+            color: #ffffff; /* White text color for sidebar */
             border-radius: 10px;
             padding: 20px;
         }
         .sidebar .sidebar-content h2 {
-            color: #333333;
-            background-color: #ffffff;
+            color: #ffffff; /* White color for sidebar headings */
+            background-color: #1e1e1e; /* Match the background color */
         }
         .stButton button {
             background-color: #0073e6; /* Blue button color */
@@ -90,6 +91,13 @@ st.markdown("""
         /* Remove the blue color from the text */
         .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
             color: #000000; /* Black color for text */
+        }
+        .sidebar .stButton button {
+            background-color: #0073e6; /* Blue button color for sidebar */
+            color: #ffffff;
+        }
+        .sidebar .stButton button:hover {
+            background-color: #005bb5; /* Darker blue on hover */
         }
     </style>
 """, unsafe_allow_html=True)
@@ -206,7 +214,7 @@ def get_vectorstore(text_chunks, qdrant_api_key, qdrant_url):
     return vectorstore
 
 def get_text_chunks(pages):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     texts = []
     for doc in pages:
         chunks = text_splitter.split_text(doc.page_content)
