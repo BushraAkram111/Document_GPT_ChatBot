@@ -87,6 +87,39 @@ st.markdown("""
         .dark-mode .stButton button:hover {
             background-color: #0073e6;
         }
+        /* Updated CSS for text colors and responsive design */
+        .text-blue {
+            color: #0073e6;
+        }
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main {
+                padding: 10px;
+            }
+            .sidebar .sidebar-content {
+                padding: 10px;
+            }
+            .stButton button {
+                padding: 8px 16px;
+            }
+            .message {
+                padding: 10px;
+            }
+            .chat-input {
+                padding: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            .text-blue {
+                font-size: 1.5em;
+            }
+            h1.text-blue {
+                font-size: 1.5em;
+            }
+            h3.text-blue {
+                font-size: 1.2em;
+            }
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,8 +143,8 @@ QDRANT_URL = "https://11955c89-e55c-47df-b9dc-67a3458f2e54.us-east4-0.gcp.cloud.
 def main():
     load_dotenv()
 
-    st.markdown("<h1 style='text-align: center; color: #0073e6;'>Elevate Your Document Experience with RAG GPT and Conversational AI</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #0073e6;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 class='text-blue' style='text-align: center;'>Chat with Documents</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 class='text-blue' style='text-align: center;'>🤖 Choose Your AI Model: Select from OpenAI or Google Gemini for tailored responses.</h3>", unsafe_allow_html=True)
 
     # File uploader at the front
     uploaded_files = st.file_uploader("🔍 Upload Your Files", type=['pdf', 'docx', 'csv', 'txt'], accept_multiple_files=True, label_visibility="visible")
