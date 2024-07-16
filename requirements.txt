@@ -1,5 +1,4 @@
 numpy
-
 streamlit==1.35.0
 streamlit-chat==0.1.1
 pymupdf
