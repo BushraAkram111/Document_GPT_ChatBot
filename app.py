@@ -156,7 +156,7 @@ def main():
 
         st.sidebar.write("### API Keys")
         openai_api_key = DEFAULT_OPENAI_API_KEY
-        google_api_key = DEFAULT_GOOGLE_API_KEY
+        google_api_key = AIzaSyBTfA6_lri8MtjYKccTMZ8umT_uvXa6hHU
 
         st.session_state.openai_api_key = openai_api_key
         st.session_state.google_api_key = google_api_key
