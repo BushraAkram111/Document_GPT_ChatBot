@@ -134,7 +134,7 @@ set_mode()
 
 # Set default values for API keys
 DEFAULT_OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
-DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUq_E5-SKLoLs8"
+DEFAULT_GOOGLE_API_KEY = "AIzaSyCis3PQiQJBzd1p58NRGSUgyu7owwww5g7gbq_E5-SKLoLs8"
 
 # Qdrant credentials (hidden from users)
 QDRANT_API_KEY = "-H67duistzh3LrcFwG4eL2-M_OLvlj-D2czHgEdvcOYByAn5BEP5kA"
